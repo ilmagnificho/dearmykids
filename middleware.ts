@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
     // Default response to fall back to if anything goes wrong
-    let supabaseResponse = NextResponse.next()
+    const supabaseResponse = NextResponse.next()
 
     try {
         // Check for env vars safely
@@ -25,7 +25,6 @@ export async function middleware(request: NextRequest) {
                         return request.cookies.getAll()
                     },
                     setAll(cookiesToSet) {
-                        supabaseResponse = NextResponse.next()
                         cookiesToSet.forEach(({ name, value, options }) => {
                             supabaseResponse.cookies.set(name, value, options)
                         })
@@ -42,7 +41,7 @@ export async function middleware(request: NextRequest) {
     } catch (error) {
         // CRITICAL: Ensure the site never crashes due to middleware errors
         console.error('Middleware Error:', error)
-        return NextResponse.next()
+        return supabaseResponse
     }
 }
 
