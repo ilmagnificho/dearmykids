@@ -2,48 +2,57 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+    // Default response to fall back to if anything goes wrong
     let supabaseResponse = NextResponse.next({
         request,
     })
 
-    // Use fallbacks to prevent Edge Function bundling errors if env vars are missing at build time
-    // though typically they should be present.
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder'
-
-    const supabase = createServerClient(
-        supabaseUrl,
-        supabaseAnonKey,
-        {
-            cookies: {
-                getAll() {
-                    return request.cookies.getAll()
-                },
-                setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        request.cookies.set(name, value)
-                    )
-                    supabaseResponse = NextResponse.next({
-                        request,
-                    })
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        supabaseResponse.cookies.set(name, value, options)
-                    )
-                },
-            },
-        }
-    )
-
-    // IMPORTANT: Avoid writing any logic between createServerClient and
-    // supabase.auth.getUser().
     try {
-        await supabase.auth.getUser()
-    } catch (error) {
-        // Suppress auth errors (e.g. from missing env vars) to allow the request to proceed
-        console.error('Middleware auth error (suppressed):', error)
-    }
+        // Check for env vars safely
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    return supabaseResponse
+        // If keys are completely missing, we just skip auth logic to avoid crashing
+        if (!supabaseUrl || !supabaseAnonKey) {
+            console.warn('Supabase env vars missing in middleware. Skipping auth check.')
+            return supabaseResponse
+        }
+
+        const supabase = createServerClient(
+            supabaseUrl,
+            supabaseAnonKey,
+            {
+                cookies: {
+                    getAll() {
+                        return request.cookies.getAll()
+                    },
+                    setAll(cookiesToSet) {
+                        cookiesToSet.forEach(({ name, value, options }) =>
+                            request.cookies.set(name, value)
+                        )
+                        supabaseResponse = NextResponse.next({
+                            request,
+                        })
+                        cookiesToSet.forEach(({ name, value, options }) =>
+                            supabaseResponse.cookies.set(name, value, options)
+                        )
+                    },
+                },
+            }
+        )
+
+        // IMPORTANT: Avoid writing any logic between createServerClient and
+        // supabase.auth.getUser().
+        await supabase.auth.getUser()
+
+        return supabaseResponse
+    } catch (error) {
+        // CRITICAL: Ensure the site never crashes due to middleware errors
+        console.error('Middleware Error:', error)
+        return NextResponse.next({
+            request,
+        })
+    }
 }
 
 export const config = {
