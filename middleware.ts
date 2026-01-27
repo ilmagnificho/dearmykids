@@ -36,7 +36,12 @@ export async function middleware(request: NextRequest) {
 
     // IMPORTANT: Avoid writing any logic between createServerClient and
     // supabase.auth.getUser().
-    await supabase.auth.getUser()
+    try {
+        await supabase.auth.getUser()
+    } catch (error) {
+        // Suppress auth errors (e.g. from missing env vars) to allow the request to proceed
+        console.error('Middleware auth error (suppressed):', error)
+    }
 
     return supabaseResponse
 }
