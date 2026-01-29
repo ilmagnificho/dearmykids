@@ -104,7 +104,7 @@ export default function PricingPage() {
                             )}
 
                             {/* Savings Badge */}
-                            {pkg.savings && (
+                            {'savings' in pkg && pkg.savings && (
                                 <div className="absolute top-4 right-4 bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-medium">
                                     {pkg.savings[locale]}
                                 </div>
