@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowRight, Globe } from 'lucide-react'
 import { useLocale } from '@/contexts/LocaleContext'
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import ReferralTracker from '@/components/ReferralTracker'
 
 // Career showcase
 const CAREERS = [
@@ -25,17 +25,7 @@ interface GalleryImage {
 
 export default function Home() {
     const { locale, setLocale, t } = useLocale()
-    const searchParams = useSearchParams()
     const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([])
-
-    // Capture Referral Code
-    useEffect(() => {
-        const ref = searchParams.get('ref')
-        if (ref) {
-            // Set cookie for server-side access during auth callback
-            document.cookie = `dearmykids_referral=${ref}; path=/; max-age=2592000` // 30 days
-        }
-    }, [searchParams])
 
     useEffect(() => {
         // Fetch public gallery
@@ -47,6 +37,7 @@ export default function Home() {
 
     return (
         <div className="flex flex-col min-h-[calc(100vh-4rem)]">
+            <ReferralTracker />
             {/* Language Switcher */}
             <div className="absolute top-20 right-4 z-10">
                 <button
