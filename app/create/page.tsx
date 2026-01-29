@@ -4,40 +4,71 @@ import { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ImageUpload } from '@/components/upload/ImageUpload'
-import { Loader2, Rocket, Briefcase, Music } from 'lucide-react'
+import { Loader2, Lock, Crown } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 
-const THEMES = [
-    { id: 'astronaut', name: 'Astronaut', icon: Rocket, description: 'Exploring the galaxy' },
-    { id: 'doctor', name: 'Doctor', icon: Briefcase, description: 'Saving lives' },
-    { id: 'kpop_star', name: 'K-Pop Star', icon: Music, description: 'Shining on stage' },
+// Theme categories with free/premium distinction
+const THEMES = {
+    free: [
+        { id: 'astronaut', name: 'Astronaut', emoji: '🚀', description: 'Space explorer' },
+        { id: 'doctor', name: 'Doctor', emoji: '👨‍⚕️', description: 'Healthcare hero' },
+        { id: 'scientist', name: 'Scientist', emoji: '🔬', description: 'Lab researcher' },
+    ],
+    premium: [
+        { id: 'kpop_star', name: 'K-Pop Star', emoji: '🎤', description: 'Stage performer' },
+        { id: 'chef', name: 'Chef', emoji: '👨‍🍳', description: 'Culinary artist' },
+        { id: 'pilot', name: 'Pilot', emoji: '✈️', description: 'Sky captain' },
+        { id: 'athlete', name: 'Athlete', emoji: '⚽', description: 'Sports champion' },
+        { id: 'artist', name: 'Artist', emoji: '🎨', description: 'Creative genius' },
+        { id: 'firefighter', name: 'Firefighter', emoji: '🚒', description: 'Brave rescuer' },
+        { id: 'police', name: 'Police Officer', emoji: '👮', description: 'Law protector' },
+        { id: 'teacher', name: 'Teacher', emoji: '📚', description: 'Knowledge giver' },
+        { id: 'veterinarian', name: 'Veterinarian', emoji: '🐾', description: 'Animal doctor' },
+    ]
+}
+
+// Format options
+const FORMATS = [
+    { id: 'square', name: 'Square', ratio: '1:1', description: 'Instagram, Profile', free: true },
+    { id: 'portrait', name: 'Portrait', ratio: '3:4', description: 'Print, Poster', free: false },
+    { id: 'landscape', name: 'Landscape', ratio: '16:9', description: 'Desktop, Frame', free: false },
+]
+
+// Shot type options
+const SHOT_TYPES = [
+    { id: 'portrait', name: 'Upper Body', description: 'Face & shoulders', free: true },
+    { id: 'full_body', name: 'Full Body', description: 'Head to toe', free: false },
+    { id: 'headshot', name: 'Headshot', description: 'Face close-up', free: false },
 ]
 
 export default function CreatePage() {
     const [step, setStep] = useState(1)
     const [selectedTheme, setSelectedTheme] = useState<string | null>(null)
+    const [selectedFormat, setSelectedFormat] = useState('square')
+    const [selectedShot, setSelectedShot] = useState('portrait')
     const [uploading, setUploading] = useState(false)
-    const [generatedImage, setGeneratedImage] = useState<string | null>(null)
+    const [isPremiumUser] = useState(false) // TODO: Check from auth/subscription
     const supabase = createClient()
     const router = useRouter()
+
+    const allThemes = [...THEMES.free, ...THEMES.premium]
+    const selectedThemeData = allThemes.find(t => t.id === selectedTheme)
 
     const handleImageSelected = async (blob: Blob) => {
         if (!selectedTheme) return
         setUploading(true)
 
         try {
-            // Check User Session
             const { data: { user } } = await supabase.auth.getUser()
             const isGuest = !user
 
             let filePath = ''
 
             if (!isGuest) {
-                // 1. Upload to Supabase Storage (Only for logged-in users)
                 const fileExt = 'jpg'
                 const fileName = `${Date.now()}.${fileExt}`
-                filePath = `${fileName}` // Relative path
+                filePath = `${fileName}`
 
                 const { error: uploadError } = await supabase.storage
                     .from('uploads')
@@ -47,8 +78,7 @@ export default function CreatePage() {
 
                 if (uploadError) throw uploadError
             } else {
-                console.log('Guest Mode: Skipping Storage Upload')
-                filePath = 'guest_demo.jpg' // Dummy path
+                filePath = 'guest_demo.jpg'
             }
 
             // Convert Blob to Base64
@@ -56,19 +86,21 @@ export default function CreatePage() {
             const base64Promise = new Promise<string>((resolve) => {
                 reader.onloadend = () => {
                     const base64 = reader.result as string
-                    resolve(base64.split(',')[1]) // Remove data url prefix
+                    resolve(base64.split(',')[1])
                 }
                 reader.readAsDataURL(blob)
             })
             const imageBase64 = await base64Promise
 
-            // 2. Call Generate API
+            // Call Generate API with options
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 body: JSON.stringify({
                     storage_path: filePath,
-                    image_base64: imageBase64, // Send image data for analysis
+                    image_base64: imageBase64,
                     theme: selectedTheme,
+                    format: selectedFormat,
+                    shot_type: selectedShot,
                     is_guest: isGuest
                 })
             })
@@ -80,7 +112,6 @@ export default function CreatePage() {
 
             const result = await response.json()
 
-            // 3. Save result and redirect to result page
             if (result.imageUrl) {
                 const resultData = {
                     id: isGuest ? 'guest-' + Date.now() : result.imageId,
@@ -89,8 +120,6 @@ export default function CreatePage() {
                     created_at: new Date().toISOString()
                 }
                 localStorage.setItem('guest_latest_result', JSON.stringify(resultData))
-
-                // Redirect to result page to show the generated image
                 router.push(`/result?guest=${isGuest}`)
             } else {
                 throw new Error('No image returned from generation')
@@ -104,72 +133,228 @@ export default function CreatePage() {
         }
     }
 
+    const canSelectTheme = (themeId: string) => {
+        const isFree = THEMES.free.some(t => t.id === themeId)
+        return isFree || isPremiumUser
+    }
+
     return (
-        <div className="container mx-auto max-w-4xl px-4 py-12">
-            <div className="mb-12 text-center">
-                <h1 className="text-3xl font-serif font-bold text-navy-900 mb-2">Create Your Child's Future</h1>
-                <p className="text-gray-500">Step {step} of 2</p>
+        <div className="container mx-auto max-w-4xl px-4 py-8">
+            {/* Progress indicator */}
+            <div className="flex items-center justify-center gap-2 mb-8">
+                {[1, 2, 3].map((s) => (
+                    <div
+                        key={s}
+                        className={`h-2 rounded-full transition-all ${s === step ? 'w-8 bg-amber-500' : s < step ? 'w-8 bg-amber-300' : 'w-8 bg-gray-200'
+                            }`}
+                    />
+                ))}
             </div>
 
+            {/* Step 1: Select Theme */}
             {step === 1 && (
                 <div className="space-y-8">
-                    <h2 className="text-xl font-medium text-center">Select a Dream Career</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {THEMES.map((theme) => {
-                            const Icon = theme.icon
-                            const isSelected = selectedTheme === theme.id
-                            return (
+                    <div className="text-center">
+                        <h1 className="text-2xl font-bold mb-2">Choose a Dream Career</h1>
+                        <p className="text-gray-500">What does your child want to be?</p>
+                    </div>
+
+                    {/* Free Themes */}
+                    <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-3">FREE</h3>
+                        <div className="grid grid-cols-3 gap-3">
+                            {THEMES.free.map((theme) => (
                                 <Card
                                     key={theme.id}
-                                    className={`p-6 cursor-pointer transition-all hover:shadow-md border-2 ${isSelected ? 'border-amber-500 bg-amber-50' : 'border-transparent'}`}
+                                    className={`p-4 cursor-pointer transition-all hover:shadow-md border-2 ${selectedTheme === theme.id
+                                        ? 'border-amber-500 bg-amber-50'
+                                        : 'border-transparent hover:border-gray-200'
+                                        }`}
                                     onClick={() => setSelectedTheme(theme.id)}
                                 >
-                                    <div className="flex flex-col items-center text-center space-y-4">
-                                        <div className={`p-4 rounded-full ${isSelected ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-500'}`}>
-                                            <Icon className="w-8 h-8" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-lg">{theme.name}</h3>
-                                            <p className="text-sm text-gray-500">{theme.description}</p>
-                                        </div>
+                                    <div className="text-center">
+                                        <span className="text-3xl mb-2 block">{theme.emoji}</span>
+                                        <p className="font-medium text-sm">{theme.name}</p>
+                                        <p className="text-xs text-gray-400">{theme.description}</p>
                                     </div>
                                 </Card>
-                            )
-                        })}
+                            ))}
+                        </div>
                     </div>
-                    <div className="flex justify-center mt-8">
+
+                    {/* Premium Themes */}
+                    <div>
+                        <div className="flex items-center gap-2 mb-3">
+                            <Crown className="w-4 h-4 text-amber-500" />
+                            <h3 className="text-sm font-medium text-gray-500">PREMIUM</h3>
+                            {!isPremiumUser && (
+                                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Coming Soon</span>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                            {THEMES.premium.map((theme) => {
+                                const canSelect = canSelectTheme(theme.id)
+                                return (
+                                    <Card
+                                        key={theme.id}
+                                        className={`p-4 transition-all border-2 relative ${canSelect
+                                            ? selectedTheme === theme.id
+                                                ? 'border-amber-500 bg-amber-50 cursor-pointer'
+                                                : 'border-transparent hover:border-gray-200 cursor-pointer hover:shadow-md'
+                                            : 'border-transparent bg-gray-50 opacity-60 cursor-not-allowed'
+                                            }`}
+                                        onClick={() => canSelect && setSelectedTheme(theme.id)}
+                                    >
+                                        {!canSelect && (
+                                            <div className="absolute top-2 right-2">
+                                                <Lock className="w-3 h-3 text-gray-400" />
+                                            </div>
+                                        )}
+                                        <div className="text-center">
+                                            <span className="text-2xl sm:text-3xl mb-2 block">{theme.emoji}</span>
+                                            <p className="font-medium text-xs sm:text-sm">{theme.name}</p>
+                                        </div>
+                                    </Card>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-center pt-4">
                         <Button
                             size="lg"
                             disabled={!selectedTheme}
                             onClick={() => setStep(2)}
-                            className="w-full md:w-auto px-12"
+                            className="px-12 bg-amber-600 hover:bg-amber-700"
                         >
-                            Next Step
+                            Continue
                         </Button>
                     </div>
                 </div>
             )}
 
+            {/* Step 2: Select Options */}
             {step === 2 && (
-                <div className="space-y-8 max-w-xl mx-auto">
-                    <h2 className="text-xl font-medium text-center">Upload a Clear Photo</h2>
-                    <p className="text-sm text-center text-gray-500 mb-8">
-                        For best results, upload a front-facing photo with good lighting.
-                    </p>
+                <div className="space-y-8">
+                    <div className="text-center">
+                        <h1 className="text-2xl font-bold mb-2">Customize Your Portrait</h1>
+                        <p className="text-gray-500">Selected: <span className="font-medium">{selectedThemeData?.emoji} {selectedThemeData?.name}</span></p>
+                    </div>
+
+                    {/* Format Selection */}
+                    <div>
+                        <h3 className="text-sm font-medium text-gray-700 mb-3">Image Format</h3>
+                        <div className="grid grid-cols-3 gap-3">
+                            {FORMATS.map((format) => {
+                                const canSelect = format.free || isPremiumUser
+                                return (
+                                    <Card
+                                        key={format.id}
+                                        className={`p-4 transition-all border-2 relative ${canSelect
+                                            ? selectedFormat === format.id
+                                                ? 'border-amber-500 bg-amber-50 cursor-pointer'
+                                                : 'border-transparent hover:border-gray-200 cursor-pointer'
+                                            : 'border-transparent bg-gray-50 opacity-60 cursor-not-allowed'
+                                            }`}
+                                        onClick={() => canSelect && setSelectedFormat(format.id)}
+                                    >
+                                        {!canSelect && (
+                                            <div className="absolute top-2 right-2">
+                                                <Lock className="w-3 h-3 text-gray-400" />
+                                            </div>
+                                        )}
+                                        <div className="text-center">
+                                            <div className={`mx-auto mb-2 bg-gray-200 ${format.id === 'square' ? 'w-10 h-10' :
+                                                format.id === 'portrait' ? 'w-8 h-10' : 'w-12 h-7'
+                                                } rounded`} />
+                                            <p className="font-medium text-sm">{format.name}</p>
+                                            <p className="text-xs text-gray-400">{format.ratio}</p>
+                                        </div>
+                                    </Card>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Shot Type Selection */}
+                    <div>
+                        <h3 className="text-sm font-medium text-gray-700 mb-3">Shot Type</h3>
+                        <div className="grid grid-cols-3 gap-3">
+                            {SHOT_TYPES.map((shot) => {
+                                const canSelect = shot.free || isPremiumUser
+                                return (
+                                    <Card
+                                        key={shot.id}
+                                        className={`p-4 transition-all border-2 relative ${canSelect
+                                            ? selectedShot === shot.id
+                                                ? 'border-amber-500 bg-amber-50 cursor-pointer'
+                                                : 'border-transparent hover:border-gray-200 cursor-pointer'
+                                            : 'border-transparent bg-gray-50 opacity-60 cursor-not-allowed'
+                                            }`}
+                                        onClick={() => canSelect && setSelectedShot(shot.id)}
+                                    >
+                                        {!canSelect && (
+                                            <div className="absolute top-2 right-2">
+                                                <Lock className="w-3 h-3 text-gray-400" />
+                                            </div>
+                                        )}
+                                        <div className="text-center">
+                                            <p className="font-medium text-sm">{shot.name}</p>
+                                            <p className="text-xs text-gray-400">{shot.description}</p>
+                                        </div>
+                                    </Card>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-center gap-4 pt-4">
+                        <Button variant="ghost" onClick={() => setStep(1)}>
+                            Back
+                        </Button>
+                        <Button
+                            size="lg"
+                            onClick={() => setStep(3)}
+                            className="px-12 bg-amber-600 hover:bg-amber-700"
+                        >
+                            Continue
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Step 3: Upload Photo */}
+            {step === 3 && (
+                <div className="space-y-6 max-w-xl mx-auto">
+                    <div className="text-center">
+                        <h1 className="text-2xl font-bold mb-2">Upload Photo</h1>
+                        <p className="text-gray-500">
+                            {selectedThemeData?.emoji} {selectedThemeData?.name} • Square • Upper Body
+                        </p>
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
+                        <p className="font-medium text-amber-800 mb-2">Tips for best results:</p>
+                        <ul className="text-amber-700 space-y-1 text-sm">
+                            <li>• Clear, front-facing photo</li>
+                            <li>• Good lighting, no shadows on face</li>
+                            <li>• Neutral background preferred</li>
+                        </ul>
+                    </div>
 
                     {uploading ? (
-                        <div className="text-center py-20">
-                            <Loader2 className="w-10 h-10 animate-spin mx-auto text-amber-500 mb-4" />
-                            <p className="text-lg font-medium">Uploading & Processing...</p>
-                            <p className="text-sm text-gray-500">This may take a moment.</p>
+                        <div className="text-center py-16">
+                            <Loader2 className="w-12 h-12 animate-spin mx-auto text-amber-500 mb-4" />
+                            <p className="text-lg font-medium">Creating your portrait...</p>
+                            <p className="text-sm text-gray-500">This takes about 10-20 seconds</p>
                         </div>
                     ) : (
                         <ImageUpload onImageSelected={handleImageSelected} />
                     )}
 
-                    <div className="flex justify-center pt-8">
-                        <Button variant="ghost" onClick={() => setStep(1)} disabled={uploading}>
-                            Back to Themes
+                    <div className="flex justify-center pt-4">
+                        <Button variant="ghost" onClick={() => setStep(2)} disabled={uploading}>
+                            Back
                         </Button>
                     </div>
                 </div>

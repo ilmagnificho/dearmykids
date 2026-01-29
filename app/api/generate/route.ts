@@ -7,11 +7,28 @@ export async function POST(request: Request) {
         const { data: { user } } = await supabase.auth.getUser()
 
         const json = await request.json()
-        const { storage_path, theme, is_guest, image_base64 } = json
+        const { storage_path, theme, is_guest, image_base64, format = 'square', shot_type = 'portrait' } = json
 
         if (!theme) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
+
+        // Theme display names
+        const themeNames: Record<string, string> = {
+            'astronaut': 'Astronaut',
+            'doctor': 'Doctor',
+            'scientist': 'Scientist',
+            'kpop_star': 'K-Pop Star',
+            'chef': 'Chef',
+            'pilot': 'Pilot',
+            'athlete': 'Athlete',
+            'artist': 'Artist',
+            'firefighter': 'Firefighter',
+            'police': 'Police Officer',
+            'teacher': 'Teacher',
+            'veterinarian': 'Veterinarian',
+        }
+        const themeName = themeNames[theme] || theme
 
         if (!image_base64 && !storage_path) {
             return NextResponse.json({ error: 'Image is required' }, { status: 400 })
@@ -45,18 +62,35 @@ export async function POST(request: Request) {
             imageMimeType = imageData.type || 'image/jpeg'
         }
 
-        console.log('Source image ready, generating with theme:', theme)
+        console.log('Source image ready, generating with theme:', themeName, 'format:', format, 'shot:', shot_type)
+
+        // Build shot type instruction
+        const shotInstructions: Record<string, string> = {
+            'portrait': 'Show the upper body (head and shoulders)',
+            'full_body': 'Show the full body from head to toe',
+            'headshot': 'Show a close-up of the face',
+        }
+        const shotInstruction = shotInstructions[shot_type] || shotInstructions['portrait']
+
+        // Build aspect ratio instruction
+        const aspectRatios: Record<string, string> = {
+            'square': '1:1 square aspect ratio',
+            'portrait': '3:4 portrait aspect ratio',
+            'landscape': '16:9 landscape aspect ratio',
+        }
+        const aspectRatio = aspectRatios[format] || aspectRatios['square']
 
         // Image editing prompt - MUST include the source image and ask to EDIT it
-        // This is the key: we send the original image + editing instructions
-        const editPrompt = `Edit this photo of a child to transform them into a ${theme}.
+        const editPrompt = `Edit this photo of a child to transform them into a ${themeName}.
 
 CRITICAL REQUIREMENTS:
 - KEEP the child's EXACT face, facial features, ethnicity, skin tone, hair color, and any accessories like glasses
-- ONLY change their clothing/outfit to match a ${theme} costume/uniform
-- Add an appropriate background for a ${theme}
-- The result should look like the SAME child dressed up as a ${theme}
-- Photorealistic style, professional portrait lighting`
+- ONLY change their clothing/outfit to match a ${themeName} costume/uniform
+- Add an appropriate professional background for a ${themeName}
+- The result should look like the SAME child dressed up as a ${themeName}
+- ${shotInstruction}
+- Output image should be ${aspectRatio}
+- Photorealistic style, professional studio portrait lighting, high quality`
 
         // Use Gemini 2.5 Flash Image with the source image included
         const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`
