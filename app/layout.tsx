@@ -75,8 +75,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <meta name="theme-color" content="#f59e0b" />
       </head>
       <body className={`${inter.variable} ${playfair.variable} font-sans min-h-screen bg-stone-50 text-stone-900`}>
