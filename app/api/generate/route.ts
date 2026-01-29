@@ -176,6 +176,24 @@ CRITICAL REQUIREMENTS:
             .from('uploads')
             .getPublicUrl(fileName)
 
+        // Check if user is premium (has active subscription)
+        // For now, we'll check user_profiles for a simple is_premium flag
+        const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('is_premium')
+            .eq('user_id', user.id)
+            .single()
+
+        const isPremium = profile?.is_premium || false
+
+        // Set expiration: 2 hours for free, 48 hours for premium
+        const expiresAt = new Date()
+        if (isPremium) {
+            expiresAt.setHours(expiresAt.getHours() + 48) // 48 hours for premium
+        } else {
+            expiresAt.setHours(expiresAt.getHours() + 2) // 2 hours for free
+        }
+
         const { data: imageRecord, error: dbError } = await supabase
             .from('generated_images')
             .insert({
@@ -183,7 +201,8 @@ CRITICAL REQUIREMENTS:
                 image_url: publicUrl,
                 prompt: editPrompt,
                 theme: theme,
-                storage_path: storage_path
+                storage_path: fileName,
+                expires_at: expiresAt.toISOString()
             })
             .select()
             .single()

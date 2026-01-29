@@ -44,6 +44,10 @@ export const translations = {
             creating: '포트레이트 생성 중...',
             creatingTime: '약 10-20초 소요됩니다',
             back: '이전',
+            usePreviousPhoto: '이전 사진 사용',
+            usePreviousPhotoDesc: '방금 업로드한 사진으로 다른 직업 만들기',
+            uploadNewPhoto: '새 사진 업로드',
+            or: '또는',
         },
         // Result page
         result: {
@@ -141,6 +145,10 @@ export const translations = {
             creating: 'Creating your portrait...',
             creatingTime: 'This takes about 10-20 seconds',
             back: 'Back',
+            usePreviousPhoto: 'Use Previous Photo',
+            usePreviousPhotoDesc: 'Create another career with the same photo',
+            uploadNewPhoto: 'Upload New Photo',
+            or: 'or',
         },
         // Result page
         result: {

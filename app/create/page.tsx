@@ -1,13 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ImageUpload } from '@/components/upload/ImageUpload'
-import { Loader2, Lock, Crown } from 'lucide-react'
+import { Loader2, Lock, Crown, ImageIcon, Upload } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useLocale } from '@/contexts/LocaleContext'
+
+// Session storage key for cached photo
+const CACHED_PHOTO_KEY = 'dearmykids_cached_photo'
 
 // Theme IDs with emojis (names come from i18n)
 const THEMES = {
@@ -51,8 +54,18 @@ export default function CreatePage() {
     const [selectedShot, setSelectedShot] = useState('portrait')
     const [uploading, setUploading] = useState(false)
     const [isPremiumUser] = useState(false) // TODO: Check from auth/subscription
+    const [cachedPhoto, setCachedPhoto] = useState<string | null>(null) // Base64 cached photo
+    const [useCachedPhoto, setUseCachedPhoto] = useState(false)
     const supabase = createClient()
     const router = useRouter()
+
+    // Load cached photo from sessionStorage on mount
+    useEffect(() => {
+        const cached = sessionStorage.getItem(CACHED_PHOTO_KEY)
+        if (cached) {
+            setCachedPhoto(cached)
+        }
+    }, [])
 
     const allThemes = [...THEMES.free, ...THEMES.premium]
     const selectedThemeData = allThemes.find(th => th.id === selectedTheme)
@@ -60,7 +73,8 @@ export default function CreatePage() {
     const getFormatName = (id: string) => t.formats[id as keyof typeof t.formats] || id
     const getShotName = (id: string) => t.shotTypes[id as keyof typeof t.shotTypes] || id
 
-    const handleImageSelected = async (blob: Blob) => {
+    // Generate with provided base64 image
+    const generateWithImage = async (imageBase64: string) => {
         if (!selectedTheme) return
         setUploading(true)
 
@@ -68,40 +82,15 @@ export default function CreatePage() {
             const { data: { user } } = await supabase.auth.getUser()
             const isGuest = !user
 
-            let filePath = ''
-
-            if (!isGuest) {
-                const fileExt = 'jpg'
-                const fileName = `${Date.now()}.${fileExt}`
-                filePath = `${fileName}`
-
-                const { error: uploadError } = await supabase.storage
-                    .from('uploads')
-                    .upload(filePath, blob, {
-                        contentType: 'image/jpeg'
-                    })
-
-                if (uploadError) throw uploadError
-            } else {
-                filePath = 'guest_demo.jpg'
-            }
-
-            // Convert Blob to Base64
-            const reader = new FileReader()
-            const base64Promise = new Promise<string>((resolve) => {
-                reader.onloadend = () => {
-                    const base64 = reader.result as string
-                    resolve(base64.split(',')[1])
-                }
-                reader.readAsDataURL(blob)
-            })
-            const imageBase64 = await base64Promise
+            // Save to session storage for reuse
+            sessionStorage.setItem(CACHED_PHOTO_KEY, imageBase64)
+            setCachedPhoto(imageBase64)
 
             // Call Generate API with options
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 body: JSON.stringify({
-                    storage_path: filePath,
+                    storage_path: '',
                     image_base64: imageBase64,
                     theme: selectedTheme,
                     format: selectedFormat,
@@ -136,6 +125,28 @@ export default function CreatePage() {
         } finally {
             setUploading(false)
         }
+    }
+
+    const handleImageSelected = async (blob: Blob) => {
+        if (!selectedTheme) return
+
+        // Convert Blob to Base64
+        const reader = new FileReader()
+        const base64Promise = new Promise<string>((resolve) => {
+            reader.onloadend = () => {
+                const base64 = reader.result as string
+                resolve(base64.split(',')[1])
+            }
+            reader.readAsDataURL(blob)
+        })
+        const imageBase64 = await base64Promise
+
+        await generateWithImage(imageBase64)
+    }
+
+    const handleUseCachedPhoto = async () => {
+        if (!cachedPhoto || !selectedTheme) return
+        await generateWithImage(cachedPhoto)
     }
 
     const canSelectTheme = (themeId: string) => {
@@ -336,15 +347,6 @@ export default function CreatePage() {
                         </p>
                     </div>
 
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
-                        <p className="font-medium text-amber-800 mb-2">{t.create.tips}</p>
-                        <ul className="text-amber-700 space-y-1 text-sm">
-                            <li>• {t.create.tip1}</li>
-                            <li>• {t.create.tip2}</li>
-                            <li>• {t.create.tip3}</li>
-                        </ul>
-                    </div>
-
                     {uploading ? (
                         <div className="text-center py-16">
                             <Loader2 className="w-12 h-12 animate-spin mx-auto text-amber-500 mb-4" />
@@ -352,7 +354,57 @@ export default function CreatePage() {
                             <p className="text-sm text-gray-500">{t.create.creatingTime}</p>
                         </div>
                     ) : (
-                        <ImageUpload onImageSelected={handleImageSelected} />
+                        <>
+                            {/* Option to use cached photo */}
+                            {cachedPhoto && (
+                                <div className="space-y-4">
+                                    <Card
+                                        className="p-4 border-2 border-amber-300 bg-amber-50 cursor-pointer hover:shadow-md transition-shadow"
+                                        onClick={handleUseCachedPhoto}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={`data:image/jpeg;base64,${cachedPhoto}`}
+                                                    alt="Cached photo"
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <ImageIcon className="w-4 h-4 text-amber-600" />
+                                                    <p className="font-semibold text-amber-900">{t.create.usePreviousPhoto}</p>
+                                                </div>
+                                                <p className="text-sm text-amber-700">{t.create.usePreviousPhotoDesc}</p>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex-1 h-px bg-gray-200" />
+                                        <span className="text-sm text-gray-400">{t.create.or}</span>
+                                        <div className="flex-1 h-px bg-gray-200" />
+                                    </div>
+
+                                    <div className="text-center text-sm text-gray-500 mb-2">
+                                        <Upload className="w-4 h-4 inline mr-1" />
+                                        {t.create.uploadNewPhoto}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
+                                <p className="font-medium text-amber-800 mb-2">{t.create.tips}</p>
+                                <ul className="text-amber-700 space-y-1 text-sm">
+                                    <li>• {t.create.tip1}</li>
+                                    <li>• {t.create.tip2}</li>
+                                    <li>• {t.create.tip3}</li>
+                                </ul>
+                            </div>
+
+                            <ImageUpload onImageSelected={handleImageSelected} />
+                        </>
                     )}
 
                     <div className="flex justify-center pt-4">

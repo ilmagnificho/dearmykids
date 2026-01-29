@@ -48,6 +48,9 @@ export function Navbar() {
                     <Link href="/create" className="text-sm font-medium text-gray-600 hover:text-navy-900">
                         Create
                     </Link>
+                    <Link href="/pricing" className="text-sm font-medium text-gray-600 hover:text-navy-900">
+                        Pricing
+                    </Link>
                     <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-navy-900">
                         Dashboard
                     </Link>
