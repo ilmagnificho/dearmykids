@@ -1,6 +1,6 @@
+```typescript
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import Replicate from 'replicate'
 
 export async function POST(request: Request) {
     try {
@@ -14,93 +14,120 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
-        // Initialize Replicate
-        const replicate = new Replicate({
-            auth: process.env.REPLICATE_API_TOKEN,
-        })
-
-        // Determine Image URL
-        let imageUrlToProcess = ''
-
-        if (is_guest && storage_path === 'guest_demo.jpg') {
-            // Use a demo image URL for guest processing (or a random one)
-            // Ideally, we might want to accept a Data URI or handle upload even for guests if we want "Real" results on "Their" photo.
-            // But since we skipped upload for guests earlier... we have a problem if we want to use THEIR photo.
-            // For now, let's use a placeholder 'child' image if they didn't upload to Supabase.
-            // OR rewrite guest flow to allow upload (public bucket? or simpler: Base64 pass-through - risky size).
-            // BETTER: Use a sample image for the "Demo" prompt.
-            imageUrlToProcess = 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&q=80'
-        } else {
-            // Get public URL from Supabase
-            const { data: { publicUrl } } = supabase.storage
-                .from('uploads')
-                .getPublicUrl(storage_path)
-            imageUrlToProcess = publicUrl
-        }
-
         console.log('Generating with theme:', theme)
 
-        // Call Replicate (Flux Schnell)
         // Adjust prompt based on theme
-        const prompt = `A hyper-realistic portrait of a child as a ${theme}, professional studio lighting, 8k, highly detailed, futuristic`
+        const prompt = `A hyper - realistic portrait of a child as a ${ theme }, professional studio lighting, 8k, highly detailed, futuristic`
 
-        const output = await replicate.run(
-            "black-forest-labs/flux-schnell",
+        // Call Google Gemini API (Imagen 3) via REST
+        // We use REST because the SDK support for Imagen can be experimental/variable
+        const apiKey = process.env.GEMINI_API_KEY
+        if (!apiKey) {
+             console.error('GEMINI_API_KEY is missing')
+             if (is_guest) {
+                 return NextResponse.json({ error: 'Service configuration error' }, { status: 500 })
+             }
+        }
+
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`,
+{
+    method: 'POST',
+        headers: {
+        'Content-Type': 'application/json',
+                },
+    body: JSON.stringify({
+        instances: [
             {
-                input: {
-                    prompt: prompt,
-                    // aspect_ratio: "3:4", // Flux might support this
-                    // image: imageUrlToProcess // If doing img2img. Flux Schnell is usually txt2img or img2img? 
-                    // Let's assume text-to-image for now based on "Theme". 
-                    // If we want Face Swap/Adapter, that's more complex.
-                    // MVP: Just Text Generation based on theme
-                }
+                prompt: prompt,
+            },
+        ],
+        parameters: {
+            sampleCount: 1,
+            // aspectRatio: "3:4" // Optional: Support if needed
+        },
+    }),
             }
         )
 
-        console.log('Replicate Output:', output)
-        // content: [ "https://replicate.delivery/..." ]
-        const resultUrl = Array.isArray(output) ? output[0] : output
+if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Gemini API Error:', errorText)
+    throw new Error(`Gemini API Failed: ${response.statusText}`)
+}
 
-        // 0. Guest Mode Response
-        if (is_guest) {
-            return NextResponse.json({
-                success: true,
-                message: 'Guest generation successful',
-                imageUrl: resultUrl,
-                guest: true
-            })
-        }
+const data = await response.json()
+// Response format: { predictions: [ { bytesBase64Encoded: "..." } ] }
 
-        // Standard Auth Check
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+let resultUrl = ''
+if (data.predictions && data.predictions[0]?.bytesBase64Encoded) {
+    const base64Image = data.predictions[0].bytesBase64Encoded
+    resultUrl = `data:image/jpeg;base64,${base64Image}`
+} else if (data.predictions && data.predictions[0]?.mimeType && data.predictions[0]?.bytesBase64Encoded) {
+    // Handle generic format if different
+    resultUrl = `data:${data.predictions[0].mimeType};base64,${data.predictions[0].bytesBase64Encoded}`
+} else {
+    throw new Error('No image data in response')
+}
 
-        // 2. Save to DB
-        const { data: imageRecord, error: dbError } = await supabase
-            .from('generated_images')
-            .insert({
-                user_id: user.id,
-                image_url: String(resultUrl),
-                prompt: prompt,
-                theme: theme,
-                storage_path: storage_path
-            })
-            .select()
-            .single()
+// 0. Guest Mode Response
+if (is_guest) {
+    return NextResponse.json({
+        success: true,
+        message: 'Guest generation successful',
+        imageUrl: resultUrl,
+        guest: true
+    })
+}
 
-        if (dbError) throw dbError
+// Standard Auth Check
+if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+}
 
-        return NextResponse.json({
-            success: true,
-            message: 'Generation processing started',
-            imageId: imageRecord.id,
-            imageUrl: String(resultUrl) // Return URL for immediate display
-        })
+// 2. Save to DB (Upload Base64 to Storage first?)
+// For real users, we should upload the result to Storage to get a permanent URL.
+// Base64 strings are too large for the 'image_url' text column usually and bad for DB performance.
+
+// Upload generated image to Supabase Storage
+const imageBuffer = Buffer.from(data.predictions[0].bytesBase64Encoded, 'base64')
+const fileName = `generated/${user.id}/${Date.now()}.jpg`
+
+const { error: uploadError } = await supabase.storage
+    .from('uploads')
+    .upload(fileName, imageBuffer, {
+        contentType: 'image/jpeg'
+    })
+
+if (uploadError) throw uploadError
+
+const { data: { publicUrl } } = supabase.storage
+    .from('uploads')
+    .getPublicUrl(fileName)
+
+const { data: imageRecord, error: dbError } = await supabase
+    .from('generated_images')
+    .insert({
+        user_id: user.id,
+        image_url: publicUrl, // Save the Storage URL, not Base64
+        prompt: prompt,
+        theme: theme,
+        storage_path: storage_path
+    })
+    .select()
+    .single()
+
+if (dbError) throw dbError
+
+return NextResponse.json({
+    success: true,
+    message: 'Generation processing started',
+    imageId: imageRecord.id,
+    imageUrl: publicUrl
+})
 
     } catch (error: any) {
-        console.error('Generation Error:', error)
-        return NextResponse.json({ error: 'Internal Server Error: ' + error.message }, { status: 500 })
-    }
+    console.error('Generation Error:', error)
+    return NextResponse.json({ error: 'Internal Server Error: ' + error.message }, { status: 500 })
+}
 }
