@@ -58,16 +58,15 @@ export async function POST(request: Request) {
         console.log('Final Prompt:', prompt)
 
         // 3. Image Generation Phase (Gemini 2.5 Flash Image)
-        // Using the production-ready model: gemini-2.5-flash-image
-        // This model natively supports image generation without special responseModalities config
+        // Model: gemini-2.5-flash-image (the only model that supports image generation)
 
         console.log('Calling Gemini 2.5 Flash Image for Image Generation...')
 
-        const gen2Endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-image-generation:generateContent?key=${apiKey}`
+        const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`
 
         const imagePrompt = `Generate a photorealistic image: ${prompt}`
 
-        const response = await fetch(gen2Endpoint, {
+        const response = await fetch(apiEndpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -75,10 +74,7 @@ export async function POST(request: Request) {
             body: JSON.stringify({
                 contents: [{
                     parts: [{ text: imagePrompt }]
-                }],
-                generationConfig: {
-                    responseModalities: ["TEXT", "IMAGE"]
-                }
+                }]
             })
         })
 
