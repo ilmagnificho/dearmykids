@@ -179,9 +179,15 @@ export default function PricingPage() {
                         : 'Secure payments powered by Lemon Squeezy'}
                 </p>
                 <div className="flex justify-center gap-4 text-gray-400">
-                    <span className="text-xs">💳 카드결제</span>
-                    <span className="text-xs">🍎 Apple Pay</span>
-                    <span className="text-xs">🔒 SSL 암호화</span>
+                    <span className="text-xs flex items-center gap-1">
+                        💳 {locale === 'ko' ? '카드결제' : 'Card Payment'}
+                    </span>
+                    <span className="text-xs flex items-center gap-1">
+                        🍎 {locale === 'ko' ? 'Apple Pay' : 'Apple Pay'}
+                    </span>
+                    <span className="text-xs flex items-center gap-1">
+                        🔒 {locale === 'ko' ? 'SSL 암호화' : 'SSL Secured'}
+                    </span>
                 </div>
             </div>
 
