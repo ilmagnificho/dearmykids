@@ -13,6 +13,7 @@ interface UserProfile {
     user_id: string
     email: string
     full_name: string
+    avatar_url?: string | null
     credits: number
     free_credits: number
     is_admin: boolean
