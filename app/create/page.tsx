@@ -51,11 +51,23 @@ export default function CreatePage() {
                 filePath = 'guest_demo.jpg' // Dummy path
             }
 
+            // Convert Blob to Base64
+            const reader = new FileReader()
+            const base64Promise = new Promise<string>((resolve) => {
+                reader.onloadend = () => {
+                    const base64 = reader.result as string
+                    resolve(base64.split(',')[1]) // Remove data url prefix
+                }
+                reader.readAsDataURL(blob)
+            })
+            const imageBase64 = await base64Promise
+
             // 2. Call Generate API
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 body: JSON.stringify({
                     storage_path: filePath,
+                    image_base64: imageBase64, // Send image data for analysis
                     theme: selectedTheme,
                     is_guest: isGuest
                 })
