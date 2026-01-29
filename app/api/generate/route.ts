@@ -63,7 +63,8 @@ export async function POST(request: Request) {
 
         console.log('Calling Gemini 2.0 Flash for Image Generation...')
 
-        const gen2Endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`
+        // Must use the image-generation specific model
+        const gen2Endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${apiKey}`
 
         const imagePrompt = `Generate a photorealistic image: ${prompt}`
 
