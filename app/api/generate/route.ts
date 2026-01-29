@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         console.log('Generating with theme:', theme)
 
         // Adjust prompt based on theme
-        const prompt = `A hyper-realistic portrait of a child as a ${theme}, professional studio lighting, 8k, highly detailed, futuristic`
+        const prompt = `Generate an image: A hyper-realistic portrait of a child as a ${theme}, professional studio lighting, 8k, highly detailed, futuristic`
 
         // Initialize Gemini API Key
         const apiKey = process.env.GEMINI_API_KEY
@@ -25,9 +25,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Service configuration error' }, { status: 500 })
         }
 
-        // Use REST API for Imagen 3 image generation
-        // The @google/generative-ai SDK doesn't support generateImages method
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`
+        // Use Gemini 2.0 Flash with native image generation
+        // This model supports responseModalities: ["IMAGE"] for image generation
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${apiKey}`
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -35,39 +35,42 @@ export async function POST(request: Request) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                instances: [
-                    { prompt: prompt }
-                ],
-                parameters: {
-                    sampleCount: 1
+                contents: [{
+                    parts: [{ text: prompt }]
+                }],
+                generationConfig: {
+                    responseModalities: ["IMAGE", "TEXT"],
+                    responseMimeType: "text/plain"
                 }
             })
         })
 
         if (!response.ok) {
             const errorText = await response.text()
-            console.error('Imagen API Error:', response.status, errorText)
-            throw new Error(`Imagen API error: ${response.status} - ${errorText}`)
+            console.error('Gemini API Error:', response.status, errorText)
+            throw new Error(`Gemini API error: ${response.status} - ${errorText}`)
         }
 
         const data = await response.json()
-        console.log('Imagen API Response:', JSON.stringify(data, null, 2))
+        console.log('Gemini API Response structure:', Object.keys(data))
 
         let resultUrl = ''
 
-        // Extract image from response
-        if (data.predictions && data.predictions.length > 0) {
-            const firstImage = data.predictions[0]
-            if (firstImage.bytesBase64Encoded) {
-                resultUrl = `data:image/png;base64,${firstImage.bytesBase64Encoded}`
-            } else if (firstImage.image) {
-                resultUrl = `data:image/png;base64,${firstImage.image}`
+        // Extract image from Gemini response
+        // Response structure: { candidates: [{ content: { parts: [{ inlineData: { mimeType, data } }] } }] }
+        if (data.candidates && data.candidates[0]?.content?.parts) {
+            for (const part of data.candidates[0].content.parts) {
+                if (part.inlineData) {
+                    const mimeType = part.inlineData.mimeType || 'image/png'
+                    resultUrl = `data:${mimeType};base64,${part.inlineData.data}`
+                    break
+                }
             }
         }
 
         if (!resultUrl) {
-            console.error('Unexpected API response structure:', data)
-            throw new Error('No image data returned from Imagen API')
+            console.error('Unexpected API response structure:', JSON.stringify(data, null, 2))
+            throw new Error('No image data returned from Gemini API')
         }
 
         // 0. Guest Mode Response
