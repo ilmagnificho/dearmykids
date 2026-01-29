@@ -57,14 +57,13 @@ export async function POST(request: Request) {
 
         console.log('Final Prompt:', prompt)
 
-        // 3. Image Generation Phase (Gemini 2.0 Flash)
-        // Imagen 3 endpoint (predict) is restricted (404). 
-        // Switching to Gemini 2.0 Flash which supports native image generation via generateContent.
+        // 3. Image Generation Phase (Gemini 2.5 Flash Image)
+        // Using the production-ready model: gemini-2.5-flash-image
+        // This model natively supports image generation without special responseModalities config
 
-        console.log('Calling Gemini 2.0 Flash for Image Generation...')
+        console.log('Calling Gemini 2.5 Flash Image for Image Generation...')
 
-        // Must use the image-generation specific model
-        const gen2Endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${apiKey}`
+        const gen2Endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-image-generation:generateContent?key=${apiKey}`
 
         const imagePrompt = `Generate a photorealistic image: ${prompt}`
 
@@ -78,53 +77,36 @@ export async function POST(request: Request) {
                     parts: [{ text: imagePrompt }]
                 }],
                 generationConfig: {
-                    responseModalities: ["IMAGE"],
-                    speechConfig: undefined // Explicitly not requesting audio
+                    responseModalities: ["TEXT", "IMAGE"]
                 }
             })
         })
 
         if (!response.ok) {
             const errorText = await response.text()
-            console.error('Gemini 2.0 Flash API Error:', response.status, errorText)
-            throw new Error(`Gemini 2.0 Generation Failed: ${response.status} ${errorText}`)
+            console.error('Gemini API Error:', response.status, errorText)
+            throw new Error(`Gemini Generation Failed: ${response.status} ${errorText}`)
         }
 
         const data = await response.json()
-        /* 
-           Response Structure for Image Generation in Gemini 2.0:
-           {
-             "candidates": [
-               {
-                 "content": {
-                   "parts": [
-                     {
-                       "inlineData": {
-                         "mimeType": "image/jpeg",
-                         "data": "..."
-                       }
-                     }
-                   ]
-                 }
-               }
-             ]
-           }
-        */
+        console.log('Gemini Response keys:', Object.keys(data))
 
         let resultUrl = ''
 
+        // Extract image from response - check for inlineData in parts
         if (data.candidates && data.candidates[0]?.content?.parts) {
             for (const part of data.candidates[0].content.parts) {
-                if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
+                if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
                     resultUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
-                    break;
+                    console.log('Found image in response')
+                    break
                 }
             }
         }
 
         if (!resultUrl) {
-            console.error('Unexpected Gemini 2.0 response:', JSON.stringify(data, null, 2))
-            throw new Error('Gemini 2.0 returned no image data.')
+            console.error('Unexpected Gemini response:', JSON.stringify(data, null, 2))
+            throw new Error('Gemini returned no image data.')
         }
 
         // 0. Guest Mode Response
