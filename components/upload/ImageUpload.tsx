@@ -94,7 +94,7 @@ export function ImageUpload({ onImageSelected }: ImageUploadProps) {
                         <Button variant="outline" className="flex-1" onClick={handleCancel}>
                             <X className="w-4 h-4 mr-2" /> Cancel
                         </Button>
-                        <Button className="flex-1 bg-navy-900" onClick={handleCropSave} disabled={processing}>
+                        <Button className="flex-1 bg-slate-900 text-white hover:bg-slate-800" onClick={handleCropSave} disabled={processing}>
                             {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4 mr-2" /> Confirm</>}
                         </Button>
                     </div>
