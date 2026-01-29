@@ -7,42 +7,44 @@ import { ImageUpload } from '@/components/upload/ImageUpload'
 import { Loader2, Lock, Crown } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useLocale } from '@/contexts/LocaleContext'
 
-// Theme categories with free/premium distinction
+// Theme IDs with emojis (names come from i18n)
 const THEMES = {
     free: [
-        { id: 'astronaut', name: 'Astronaut', emoji: '🚀', description: 'Space explorer' },
-        { id: 'doctor', name: 'Doctor', emoji: '👨‍⚕️', description: 'Healthcare hero' },
-        { id: 'scientist', name: 'Scientist', emoji: '🔬', description: 'Lab researcher' },
+        { id: 'astronaut', emoji: '🚀' },
+        { id: 'doctor', emoji: '👨‍⚕️' },
+        { id: 'scientist', emoji: '🔬' },
     ],
     premium: [
-        { id: 'kpop_star', name: 'K-Pop Star', emoji: '🎤', description: 'Stage performer' },
-        { id: 'chef', name: 'Chef', emoji: '👨‍🍳', description: 'Culinary artist' },
-        { id: 'pilot', name: 'Pilot', emoji: '✈️', description: 'Sky captain' },
-        { id: 'athlete', name: 'Athlete', emoji: '⚽', description: 'Sports champion' },
-        { id: 'artist', name: 'Artist', emoji: '🎨', description: 'Creative genius' },
-        { id: 'firefighter', name: 'Firefighter', emoji: '🚒', description: 'Brave rescuer' },
-        { id: 'police', name: 'Police Officer', emoji: '👮', description: 'Law protector' },
-        { id: 'teacher', name: 'Teacher', emoji: '📚', description: 'Knowledge giver' },
-        { id: 'veterinarian', name: 'Veterinarian', emoji: '🐾', description: 'Animal doctor' },
+        { id: 'kpop_star', emoji: '🎤' },
+        { id: 'chef', emoji: '👨‍🍳' },
+        { id: 'pilot', emoji: '✈️' },
+        { id: 'athlete', emoji: '⚽' },
+        { id: 'artist', emoji: '🎨' },
+        { id: 'firefighter', emoji: '🚒' },
+        { id: 'police', emoji: '👮' },
+        { id: 'teacher', emoji: '📚' },
+        { id: 'veterinarian', emoji: '🐾' },
     ]
 }
 
-// Format options
+// Format IDs (names come from i18n)
 const FORMATS = [
-    { id: 'square', name: 'Square', ratio: '1:1', description: 'Instagram, Profile', free: true },
-    { id: 'portrait', name: 'Portrait', ratio: '3:4', description: 'Print, Poster', free: false },
-    { id: 'landscape', name: 'Landscape', ratio: '16:9', description: 'Desktop, Frame', free: false },
+    { id: 'square', ratio: '1:1', free: true },
+    { id: 'portrait', ratio: '3:4', free: false },
+    { id: 'landscape', ratio: '16:9', free: false },
 ]
 
-// Shot type options
+// Shot type IDs (names come from i18n)
 const SHOT_TYPES = [
-    { id: 'portrait', name: 'Upper Body', description: 'Face & shoulders', free: true },
-    { id: 'full_body', name: 'Full Body', description: 'Head to toe', free: false },
-    { id: 'headshot', name: 'Headshot', description: 'Face close-up', free: false },
+    { id: 'portrait', free: true },
+    { id: 'full_body', free: false },
+    { id: 'headshot', free: false },
 ]
 
 export default function CreatePage() {
+    const { t } = useLocale()
     const [step, setStep] = useState(1)
     const [selectedTheme, setSelectedTheme] = useState<string | null>(null)
     const [selectedFormat, setSelectedFormat] = useState('square')
@@ -53,7 +55,10 @@ export default function CreatePage() {
     const router = useRouter()
 
     const allThemes = [...THEMES.free, ...THEMES.premium]
-    const selectedThemeData = allThemes.find(t => t.id === selectedTheme)
+    const selectedThemeData = allThemes.find(th => th.id === selectedTheme)
+    const getThemeName = (id: string) => t.themes[id as keyof typeof t.themes] || id
+    const getFormatName = (id: string) => t.formats[id as keyof typeof t.formats] || id
+    const getShotName = (id: string) => t.shotTypes[id as keyof typeof t.shotTypes] || id
 
     const handleImageSelected = async (blob: Blob) => {
         if (!selectedTheme) return
@@ -155,13 +160,13 @@ export default function CreatePage() {
             {step === 1 && (
                 <div className="space-y-8">
                     <div className="text-center">
-                        <h1 className="text-2xl font-bold mb-2">Choose a Dream Career</h1>
-                        <p className="text-gray-500">What does your child want to be?</p>
+                        <h1 className="text-2xl font-bold mb-2">{t.create.chooseCareer}</h1>
+                        <p className="text-gray-500">{t.create.whatToBe}</p>
                     </div>
 
                     {/* Free Themes */}
                     <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-3">FREE</h3>
+                        <h3 className="text-sm font-medium text-gray-500 mb-3">{t.create.free}</h3>
                         <div className="grid grid-cols-3 gap-3">
                             {THEMES.free.map((theme) => (
                                 <Card
@@ -174,8 +179,7 @@ export default function CreatePage() {
                                 >
                                     <div className="text-center">
                                         <span className="text-3xl mb-2 block">{theme.emoji}</span>
-                                        <p className="font-medium text-sm">{theme.name}</p>
-                                        <p className="text-xs text-gray-400">{theme.description}</p>
+                                        <p className="font-medium text-sm">{getThemeName(theme.id)}</p>
                                     </div>
                                 </Card>
                             ))}
@@ -186,9 +190,9 @@ export default function CreatePage() {
                     <div>
                         <div className="flex items-center gap-2 mb-3">
                             <Crown className="w-4 h-4 text-amber-500" />
-                            <h3 className="text-sm font-medium text-gray-500">PREMIUM</h3>
+                            <h3 className="text-sm font-medium text-gray-500">{t.create.premium}</h3>
                             {!isPremiumUser && (
-                                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Coming Soon</span>
+                                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{t.create.comingSoon}</span>
                             )}
                         </div>
                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -212,7 +216,7 @@ export default function CreatePage() {
                                         )}
                                         <div className="text-center">
                                             <span className="text-2xl sm:text-3xl mb-2 block">{theme.emoji}</span>
-                                            <p className="font-medium text-xs sm:text-sm">{theme.name}</p>
+                                            <p className="font-medium text-xs sm:text-sm">{getThemeName(theme.id)}</p>
                                         </div>
                                     </Card>
                                 )
@@ -227,7 +231,7 @@ export default function CreatePage() {
                             onClick={() => setStep(2)}
                             className="px-12 bg-amber-600 hover:bg-amber-700"
                         >
-                            Continue
+                            {t.create.continue}
                         </Button>
                     </div>
                 </div>
@@ -237,13 +241,13 @@ export default function CreatePage() {
             {step === 2 && (
                 <div className="space-y-8">
                     <div className="text-center">
-                        <h1 className="text-2xl font-bold mb-2">Customize Your Portrait</h1>
-                        <p className="text-gray-500">Selected: <span className="font-medium">{selectedThemeData?.emoji} {selectedThemeData?.name}</span></p>
+                        <h1 className="text-2xl font-bold mb-2">{t.create.customize}</h1>
+                        <p className="text-gray-500">{selectedThemeData?.emoji} {selectedTheme && getThemeName(selectedTheme)}</p>
                     </div>
 
                     {/* Format Selection */}
                     <div>
-                        <h3 className="text-sm font-medium text-gray-700 mb-3">Image Format</h3>
+                        <h3 className="text-sm font-medium text-gray-700 mb-3">{t.create.format}</h3>
                         <div className="grid grid-cols-3 gap-3">
                             {FORMATS.map((format) => {
                                 const canSelect = format.free || isPremiumUser
@@ -267,7 +271,7 @@ export default function CreatePage() {
                                             <div className={`mx-auto mb-2 bg-gray-200 ${format.id === 'square' ? 'w-10 h-10' :
                                                 format.id === 'portrait' ? 'w-8 h-10' : 'w-12 h-7'
                                                 } rounded`} />
-                                            <p className="font-medium text-sm">{format.name}</p>
+                                            <p className="font-medium text-sm">{getFormatName(format.id)}</p>
                                             <p className="text-xs text-gray-400">{format.ratio}</p>
                                         </div>
                                     </Card>
@@ -278,7 +282,7 @@ export default function CreatePage() {
 
                     {/* Shot Type Selection */}
                     <div>
-                        <h3 className="text-sm font-medium text-gray-700 mb-3">Shot Type</h3>
+                        <h3 className="text-sm font-medium text-gray-700 mb-3">{t.create.shotType}</h3>
                         <div className="grid grid-cols-3 gap-3">
                             {SHOT_TYPES.map((shot) => {
                                 const canSelect = shot.free || isPremiumUser
@@ -299,8 +303,7 @@ export default function CreatePage() {
                                             </div>
                                         )}
                                         <div className="text-center">
-                                            <p className="font-medium text-sm">{shot.name}</p>
-                                            <p className="text-xs text-gray-400">{shot.description}</p>
+                                            <p className="font-medium text-sm">{getShotName(shot.id)}</p>
                                         </div>
                                     </Card>
                                 )
@@ -310,14 +313,14 @@ export default function CreatePage() {
 
                     <div className="flex justify-center gap-4 pt-4">
                         <Button variant="ghost" onClick={() => setStep(1)}>
-                            Back
+                            {t.create.back}
                         </Button>
                         <Button
                             size="lg"
                             onClick={() => setStep(3)}
                             className="px-12 bg-amber-600 hover:bg-amber-700"
                         >
-                            Continue
+                            {t.create.continue}
                         </Button>
                     </div>
                 </div>
@@ -327,26 +330,26 @@ export default function CreatePage() {
             {step === 3 && (
                 <div className="space-y-6 max-w-xl mx-auto">
                     <div className="text-center">
-                        <h1 className="text-2xl font-bold mb-2">Upload Photo</h1>
+                        <h1 className="text-2xl font-bold mb-2">{t.create.uploadPhoto}</h1>
                         <p className="text-gray-500">
-                            {selectedThemeData?.emoji} {selectedThemeData?.name} • Square • Upper Body
+                            {selectedThemeData?.emoji} {selectedTheme && getThemeName(selectedTheme)} • {getFormatName(selectedFormat)} • {getShotName(selectedShot)}
                         </p>
                     </div>
 
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
-                        <p className="font-medium text-amber-800 mb-2">Tips for best results:</p>
+                        <p className="font-medium text-amber-800 mb-2">{t.create.tips}</p>
                         <ul className="text-amber-700 space-y-1 text-sm">
-                            <li>• Clear, front-facing photo</li>
-                            <li>• Good lighting, no shadows on face</li>
-                            <li>• Neutral background preferred</li>
+                            <li>• {t.create.tip1}</li>
+                            <li>• {t.create.tip2}</li>
+                            <li>• {t.create.tip3}</li>
                         </ul>
                     </div>
 
                     {uploading ? (
                         <div className="text-center py-16">
                             <Loader2 className="w-12 h-12 animate-spin mx-auto text-amber-500 mb-4" />
-                            <p className="text-lg font-medium">Creating your portrait...</p>
-                            <p className="text-sm text-gray-500">This takes about 10-20 seconds</p>
+                            <p className="text-lg font-medium">{t.create.creating}</p>
+                            <p className="text-sm text-gray-500">{t.create.creatingTime}</p>
                         </div>
                     ) : (
                         <ImageUpload onImageSelected={handleImageSelected} />
@@ -354,7 +357,7 @@ export default function CreatePage() {
 
                     <div className="flex justify-center pt-4">
                         <Button variant="ghost" onClick={() => setStep(2)} disabled={uploading}>
-                            Back
+                            {t.create.back}
                         </Button>
                     </div>
                 </div>
