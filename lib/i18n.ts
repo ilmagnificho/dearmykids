@@ -198,6 +198,14 @@ export const translations = {
             linkCopied: 'Image link copied!',
             emptyState: 'Start creating portraits to fill your collection!',
         },
+        // Collection
+        collection: {
+            title: 'My Career Collection',
+            description: 'Collect all career cards to unlock a special reward!',
+            badge: 'Career Passport',
+            collected: 'Collected',
+            emptyState: 'Start creating portraits to fill your collection!',
+        },
         // Invite
         invite: {
             title: 'Invite Friends & Get Free Credits',
