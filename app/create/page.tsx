@@ -61,7 +61,10 @@ export default function CreatePage() {
                 })
             })
 
-            if (!response.ok) throw new Error('Generation failed')
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(errorData.error || `Generation failed: ${response.status}`)
+            }
 
             const result = await response.json()
 
