@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export async function POST(request: Request) {
     try {
@@ -14,57 +13,55 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
+        if (!image_base64 && !storage_path) {
+            return NextResponse.json({ error: 'Image is required' }, { status: 400 })
+        }
+
         console.log('Generating with theme:', theme)
 
         const apiKey = process.env.GEMINI_API_KEY
         if (!apiKey) {
             console.error('GEMINI_API_KEY is missing')
-            if (is_guest) {
-                return NextResponse.json({ error: 'Service configuration error' }, { status: 500 })
-            }
+            return NextResponse.json({ error: 'Service configuration error' }, { status: 500 })
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey!)
+        // Get the source image
+        let sourceImageBase64 = image_base64
+        let imageMimeType = 'image/jpeg'
 
-        // 1. Vision Analysis Phase (if image provided)
-        let visualDescription = `A cute child`
+        // If no direct base64, fetch from storage
+        if (!sourceImageBase64 && storage_path) {
+            const { data: imageData, error: downloadError } = await supabase.storage
+                .from('uploads')
+                .download(storage_path)
 
-        if (image_base64) {
-            try {
-                const visionModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
-                const visionPrompt = "Describe the physical appearance of the child in this photo in extreme detail for an image generator prompt. Focus on: ethnicity, hair style/color, eye shape, distinct features (like glasses, freckles), facial structure, and expression. Do not describe the background. Keep it concise, comma-separated."
-
-                const visionResult = await visionModel.generateContent([
-                    visionPrompt,
-                    {
-                        inlineData: {
-                            data: image_base64,
-                            mimeType: "image/jpeg",
-                        },
-                    },
-                ])
-                const response = await visionResult.response
-                visualDescription = response.text().trim()
-                console.log('Vision Analysis:', visualDescription)
-            } catch (visionError) {
-                console.warn('Vision analysis failed, falling back to generic prompt:', visionError)
+            if (downloadError || !imageData) {
+                console.error('Failed to download source image:', downloadError)
+                throw new Error('Failed to download source image')
             }
+
+            const arrayBuffer = await imageData.arrayBuffer()
+            sourceImageBase64 = Buffer.from(arrayBuffer).toString('base64')
+            imageMimeType = imageData.type || 'image/jpeg'
         }
 
-        // 2. Adjust prompt using Vision data
-        // Combine visual description with theme
-        const prompt = `A hyper - realistic cinematic portrait of ${visualDescription} dressed as a ${theme}, professional studio lighting, 8k, highly detailed, sharp focus, futuristic, movie poster quality`
+        console.log('Source image ready, generating with theme:', theme)
 
-        console.log('Final Prompt:', prompt)
+        // Image editing prompt - MUST include the source image and ask to EDIT it
+        // This is the key: we send the original image + editing instructions
+        const editPrompt = `Edit this photo of a child to transform them into a ${theme}.
 
-        // 3. Image Generation Phase (Gemini 2.5 Flash Image)
-        // Model: gemini-2.5-flash-image (the only model that supports image generation)
+CRITICAL REQUIREMENTS:
+- KEEP the child's EXACT face, facial features, ethnicity, skin tone, hair color, and any accessories like glasses
+- ONLY change their clothing/outfit to match a ${theme} costume/uniform
+- Add an appropriate background for a ${theme}
+- The result should look like the SAME child dressed up as a ${theme}
+- Photorealistic style, professional portrait lighting`
 
-        console.log('Calling Gemini 2.5 Flash Image for Image Generation...')
-
+        // Use Gemini 2.5 Flash Image with the source image included
         const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`
 
-        const imagePrompt = `Generate a photorealistic image: ${prompt}`
+        console.log('Calling Gemini 2.5 Flash Image for Image Editing...')
 
         const response = await fetch(apiEndpoint, {
             method: 'POST',
@@ -73,7 +70,15 @@ export async function POST(request: Request) {
             },
             body: JSON.stringify({
                 contents: [{
-                    parts: [{ text: imagePrompt }]
+                    parts: [
+                        {
+                            inlineData: {
+                                mimeType: imageMimeType,
+                                data: sourceImageBase64
+                            }
+                        },
+                        { text: editPrompt }
+                    ]
                 }]
             })
         })
@@ -85,16 +90,16 @@ export async function POST(request: Request) {
         }
 
         const data = await response.json()
-        console.log('Gemini Response keys:', Object.keys(data))
+        console.log('Gemini Response received')
 
         let resultUrl = ''
 
-        // Extract image from response - check for inlineData in parts
+        // Extract image from response
         if (data.candidates && data.candidates[0]?.content?.parts) {
             for (const part of data.candidates[0].content.parts) {
                 if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
                     resultUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
-                    console.log('Found image in response')
+                    console.log('Found edited image in response')
                     break
                 }
             }
@@ -105,7 +110,7 @@ export async function POST(request: Request) {
             throw new Error('Gemini returned no image data.')
         }
 
-        // 0. Guest Mode Response
+        // Guest Mode Response
         if (is_guest) {
             return NextResponse.json({
                 success: true,
@@ -120,10 +125,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // 2. Save to DB
+        // Save to Storage and DB
         const base64Data = resultUrl.split(',')[1]
         const imageBuffer = Buffer.from(base64Data, 'base64')
-        const fileName = `generated / ${user.id}/${Date.now()}.jpg`
+        const fileName = `generated/${user.id}/${Date.now()}.jpg`
 
         const { error: uploadError } = await supabase.storage
             .from('uploads')
@@ -142,7 +147,7 @@ export async function POST(request: Request) {
             .insert({
                 user_id: user.id,
                 image_url: publicUrl,
-                prompt: prompt,
+                prompt: editPrompt,
                 theme: theme,
                 storage_path: storage_path
             })
@@ -153,7 +158,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json({
             success: true,
-            message: 'Generation processing started',
+            message: 'Generation successful',
             imageId: imageRecord.id,
             imageUrl: publicUrl
         })
