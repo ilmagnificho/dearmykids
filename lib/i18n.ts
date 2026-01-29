@@ -74,6 +74,14 @@ export const translations = {
             linkCopied: '이미지 링크가 복사되었습니다!',
             emptyState: '포트레이트를 만들어 컬렉션을 채워보세요!',
         },
+        // Collection
+        collection: {
+            title: '나의 커리어 컬렉션',
+            description: '모든 직업 카드를 모아 특별한 보상을 획득하세요!',
+            badge: '커리어 여권',
+            collected: '수집 완료',
+            emptyState: '포트레이트를 만들어 컬렉션을 채워보세요!',
+        },
         // Invite
         invite: {
             title: '친구 초대하고 무료 이용권 받기',
