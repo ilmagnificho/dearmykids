@@ -57,66 +57,73 @@ export async function POST(request: Request) {
 
         console.log('Final Prompt:', prompt)
 
-        // 3. Image Generation Phase (Imagen 3 via REST)
-        // Note: The SDK's 'generateImages' method is not available in all versions/regions yet.
-        // We fallback to direct REST API call for Imagen 3.
+        // 3. Image Generation Phase (Gemini 2.0 Flash)
+        // Imagen 3 endpoint (predict) is restricted (404). 
+        // Switching to Gemini 2.0 Flash which supports native image generation via generateContent.
+
+        console.log('Calling Gemini 2.0 Flash for Image Generation...')
+
+        const gen2Endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`
+
+        const imagePrompt = `Generate a photorealistic image: ${prompt}`
+
+        const response = await fetch(gen2Endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: imagePrompt }]
+                }],
+                generationConfig: {
+                    responseModalities: ["IMAGE"],
+                    speechConfig: undefined // Explicitly not requesting audio
+                }
+            })
+        })
+
+        if (!response.ok) {
+            const errorText = await response.text()
+            console.error('Gemini 2.0 Flash API Error:', response.status, errorText)
+            throw new Error(`Gemini 2.0 Generation Failed: ${response.status} ${errorText}`)
+        }
+
+        const data = await response.json()
+        /* 
+           Response Structure for Image Generation in Gemini 2.0:
+           {
+             "candidates": [
+               {
+                 "content": {
+                   "parts": [
+                     {
+                       "inlineData": {
+                         "mimeType": "image/jpeg",
+                         "data": "..."
+                       }
+                     }
+                   ]
+                 }
+               }
+             ]
+           }
+        */
 
         let resultUrl = ''
 
-        try {
-            console.log('Calling Imagen 3 REST API...')
-            // Try explicit endpoint for Imagen 3
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        instances: [
-                            {
-                                prompt: prompt,
-                            },
-                        ],
-                        parameters: {
-                            sampleCount: 1,
-                            aspectRatio: "1:1"
-                        },
-                    }),
+        if (data.candidates && data.candidates[0]?.content?.parts) {
+            for (const part of data.candidates[0].content.parts) {
+                if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
+                    resultUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
+                    break;
                 }
-            )
-
-            if (!response.ok) {
-                const errorText = await response.text()
-                console.error('Imagen 3 API Error:', response.status, errorText)
-
-                // If 404, valid Key but model not found -> Permission/Availability issue
-                if (response.status === 404) {
-                    throw new Error('Imagen 3 Model not found (404). This API key may not have access to Imagen 3.')
-                }
-                throw new Error(`Imagen 3 Failed: ${response.status} ${response.statusText}`)
             }
-
-            const data = await response.json()
-
-            if (data.predictions && data.predictions[0]?.bytesBase64Encoded) {
-                const base64Image = data.predictions[0].bytesBase64Encoded
-                resultUrl = `data:image/jpeg;base64,${base64Image}`
-            } else if (data.predictions && data.predictions[0]?.mimeType && data.predictions[0]?.bytesBase64Encoded) {
-                resultUrl = `data:${data.predictions[0].mimeType};base64,${data.predictions[0].bytesBase64Encoded}`
-            } else {
-                console.error('Unexpected Imagen response:', data)
-                throw new Error('No image data in Imagen response')
-            }
-
-        } catch (error: any) {
-            console.error('Image Generation Logic Failed:', error)
-            throw error
         }
 
         if (!resultUrl) {
-            throw new Error('Failed to generate image.')
+            console.error('Unexpected Gemini 2.0 response:', JSON.stringify(data, null, 2))
+            throw new Error('Gemini 2.0 returned no image data.')
         }
 
         // 0. Guest Mode Response
