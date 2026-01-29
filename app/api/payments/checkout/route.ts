@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
-import { createCheckout, LEMONSQUEEZY_CONFIG } from '@/lib/lemonsqueezy'
+import { CREDIT_PACKAGES, PackageId } from '@/lib/credits'
 
 export async function POST(request: Request) {
     try {
@@ -11,33 +11,80 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const { plan } = await request.json()
+        const { packageId } = await request.json() as { packageId: PackageId }
 
-        // Get variant ID based on plan
-        let variantId: string | undefined
-        if (plan === 'monthly') {
-            variantId = LEMONSQUEEZY_CONFIG.variants.premium_monthly
-        } else if (plan === 'yearly') {
-            variantId = LEMONSQUEEZY_CONFIG.variants.premium_yearly
+        // Validate package
+        const creditPackage = CREDIT_PACKAGES[packageId]
+        if (!creditPackage) {
+            return NextResponse.json({ error: 'Invalid package' }, { status: 400 })
         }
 
+        // Get variant ID from environment
+        const variantEnvKey = `LEMONSQUEEZY_VARIANT_${packageId.toUpperCase()}`
+        const variantId = process.env[variantEnvKey]
+
         if (!variantId) {
-            return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+            console.error(`Missing env var: ${variantEnvKey}`)
+            return NextResponse.json({ error: 'Package not configured' }, { status: 500 })
+        }
+
+        const apiKey = process.env.LEMONSQUEEZY_API_KEY
+        const storeId = process.env.LEMONSQUEEZY_STORE_ID
+
+        if (!apiKey || !storeId) {
+            return NextResponse.json({ error: 'Payment not configured' }, { status: 500 })
         }
 
         // Get base URL
-        const origin = request.headers.get('origin') || 'https://dearmykids.vercel.app'
+        const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'https://dearmykids.vercel.app'
 
-        // Create checkout
-        const checkoutUrl = await createCheckout(
-            variantId,
-            user.id,
-            user.email || '',
-            `${origin}/dashboard?payment=success`,
-            `${origin}/pricing?payment=cancelled`
-        )
+        // Create Lemon Squeezy checkout
+        const response = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/vnd.api+json',
+                'Content-Type': 'application/vnd.api+json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                data: {
+                    type: 'checkouts',
+                    attributes: {
+                        checkout_data: {
+                            email: user.email,
+                            custom: {
+                                user_id: user.id,
+                                package_id: packageId,
+                                credits: creditPackage.credits
+                            }
+                        },
+                        product_options: {
+                            redirect_url: `${origin}/dashboard?payment=success&package=${packageId}`,
+                        },
+                        checkout_options: {
+                            button_color: '#f59e0b'
+                        }
+                    },
+                    relationships: {
+                        store: {
+                            data: { type: 'stores', id: storeId }
+                        },
+                        variant: {
+                            data: { type: 'variants', id: variantId }
+                        }
+                    }
+                }
+            })
+        })
 
-        return NextResponse.json({ checkoutUrl })
+        if (!response.ok) {
+            const error = await response.text()
+            console.error('Lemon Squeezy error:', error)
+            throw new Error('Failed to create checkout')
+        }
+
+        const data = await response.json()
+        return NextResponse.json({ checkoutUrl: data.data.attributes.url })
 
     } catch (error: any) {
         console.error('Checkout error:', error)

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
+import { FREE_TIER } from '@/lib/credits'
 
 export async function POST(request: Request) {
     try {
@@ -12,6 +13,11 @@ export async function POST(request: Request) {
         if (!theme) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
+
+        // Check if theme is free or premium
+        const isFreeTheme = FREE_TIER.freeThemes.includes(theme)
+        const isFreeFormat = format === 'square'
+        const isFreeShot = shot_type === 'portrait'
 
         // Theme display names
         const themeNames: Record<string, string> = {
@@ -159,6 +165,51 @@ CRITICAL REQUIREMENTS:
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
+        // Check credits and daily limit
+        const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('credits, daily_free_used, daily_free_date')
+            .eq('user_id', user.id)
+            .single()
+
+        const today = new Date().toISOString().split('T')[0]
+        const credits = profile?.credits || 0
+        const dailyFreeUsed = profile?.daily_free_date === today ? (profile?.daily_free_used || 0) : 0
+
+        // Determine if this is a free generation or paid
+        const canUseFree = isFreeTheme && isFreeFormat && isFreeShot && dailyFreeUsed < FREE_TIER.dailyLimit
+        const needsCredits = !canUseFree
+
+        if (needsCredits && credits <= 0) {
+            return NextResponse.json({
+                error: 'No credits remaining',
+                needsCredits: true,
+                message: 'Please purchase credits to continue'
+            }, { status: 402 })
+        }
+
+        // Deduct credit or update daily free count
+        if (canUseFree) {
+            // Using free daily generation
+            await supabase
+                .from('user_profiles')
+                .upsert({
+                    user_id: user.id,
+                    daily_free_used: dailyFreeUsed + 1,
+                    daily_free_date: today,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'user_id' })
+        } else {
+            // Deduct 1 credit
+            await supabase
+                .from('user_profiles')
+                .update({
+                    credits: credits - 1,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('user_id', user.id)
+        }
+
         // Save to Storage and DB
         const base64Data = resultUrl.split(',')[1]
         const imageBuffer = Buffer.from(base64Data, 'base64')
@@ -176,20 +227,11 @@ CRITICAL REQUIREMENTS:
             .from('uploads')
             .getPublicUrl(fileName)
 
-        // Check if user is premium (has active subscription)
-        // For now, we'll check user_profiles for a simple is_premium flag
-        const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('is_premium')
-            .eq('user_id', user.id)
-            .single()
-
-        const isPremium = profile?.is_premium || false
-
-        // Set expiration: 2 hours for free, 48 hours for premium
+        // Set expiration based on whether credits were used
+        // 48 hours if paid (credits used), 2 hours if free daily
         const expiresAt = new Date()
-        if (isPremium) {
-            expiresAt.setHours(expiresAt.getHours() + 48) // 48 hours for premium
+        if (needsCredits) {
+            expiresAt.setHours(expiresAt.getHours() + 48) // 48 hours for paid
         } else {
             expiresAt.setHours(expiresAt.getHours() + 2) // 2 hours for free
         }

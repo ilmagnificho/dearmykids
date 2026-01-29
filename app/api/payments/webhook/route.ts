@@ -1,16 +1,22 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { verifyWebhookSignature } from '@/lib/lemonsqueezy'
+import crypto from 'crypto'
 
-// Lemon Squeezy webhook handler
+// Verify Lemon Squeezy webhook signature
+function verifySignature(payload: string, signature: string, secret: string): boolean {
+    const hmac = crypto.createHmac('sha256', secret)
+    const digest = hmac.update(payload).digest('hex')
+    return signature === digest
+}
+
 export async function POST(request: Request) {
     try {
         const rawBody = await request.text()
         const signature = request.headers.get('x-signature') || ''
         const webhookSecret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET
 
-        // Verify signature
-        if (webhookSecret && !verifyWebhookSignature(rawBody, signature, webhookSecret)) {
+        // Verify signature if secret is configured
+        if (webhookSecret && !verifySignature(rawBody, signature, webhookSecret)) {
             console.error('Invalid webhook signature')
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
         }
@@ -20,7 +26,18 @@ export async function POST(request: Request) {
 
         console.log('Lemon Squeezy webhook:', eventName)
 
-        // Use service role for admin operations
+        // Get custom data
+        const customData = payload.meta.custom_data || {}
+        const userId = customData.user_id
+        const packageId = customData.package_id
+        const credits = parseInt(customData.credits) || 0
+
+        if (!userId) {
+            console.error('No user_id in webhook')
+            return NextResponse.json({ error: 'No user_id' }, { status: 400 })
+        }
+
+        // Connect to Supabase with service role
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -30,64 +47,47 @@ export async function POST(request: Request) {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-        // Get user ID from custom data
-        const userId = payload.meta.custom_data?.user_id
-        if (!userId) {
-            console.error('No user_id in webhook payload')
-            return NextResponse.json({ error: 'No user_id' }, { status: 400 })
-        }
+        // Handle order completed (one-time purchase)
+        if (eventName === 'order_created') {
+            const orderId = payload.data.id
+            const orderTotal = payload.data.attributes.total
 
-        // Handle different events
-        switch (eventName) {
-            case 'subscription_created':
-            case 'subscription_updated':
-            case 'subscription_resumed': {
-                const status = payload.data.attributes.status
-                const isActive = status === 'active'
+            console.log(`Order ${orderId} for user ${userId}: ${credits} credits`)
 
-                // Update user profile
-                await supabase
-                    .from('user_profiles')
-                    .upsert({
-                        user_id: userId,
-                        is_premium: isActive,
-                        subscription_id: payload.data.id,
-                        subscription_status: status,
-                        subscription_ends_at: payload.data.attributes.ends_at || payload.data.attributes.renews_at,
-                        updated_at: new Date().toISOString()
-                    }, {
-                        onConflict: 'user_id'
-                    })
+            // Get current credits
+            const { data: profile } = await supabase
+                .from('user_profiles')
+                .select('credits')
+                .eq('user_id', userId)
+                .single()
 
-                console.log(`User ${userId} subscription updated: ${status}`)
-                break
-            }
+            const currentCredits = profile?.credits || 0
+            const newCredits = currentCredits + credits
 
-            case 'subscription_cancelled':
-            case 'subscription_expired':
-            case 'subscription_paused': {
-                // Mark as not premium
-                await supabase
-                    .from('user_profiles')
-                    .update({
-                        is_premium: false,
-                        subscription_status: payload.data.attributes.status,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('user_id', userId)
+            // Update user credits
+            await supabase
+                .from('user_profiles')
+                .upsert({
+                    user_id: userId,
+                    credits: newCredits,
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'user_id'
+                })
 
-                console.log(`User ${userId} subscription ended`)
-                break
-            }
+            // Record the purchase
+            await supabase
+                .from('purchases')
+                .insert({
+                    user_id: userId,
+                    order_id: orderId,
+                    package_id: packageId,
+                    credits_added: credits,
+                    amount: orderTotal,
+                    created_at: new Date().toISOString()
+                })
 
-            case 'order_created': {
-                // One-time purchase - could be used for credit packs
-                console.log(`Order created for user ${userId}`)
-                break
-            }
-
-            default:
-                console.log(`Unhandled event: ${eventName}`)
+            console.log(`User ${userId} now has ${newCredits} credits`)
         }
 
         return NextResponse.json({ received: true })
