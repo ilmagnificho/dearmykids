@@ -44,6 +44,15 @@ export function Navbar() {
                     DearMyKids
                 </Link>
 
+                <div className="hidden md:flex items-center gap-6">
+                    <Link href="/create" className="text-sm font-medium text-gray-600 hover:text-navy-900">
+                        Create
+                    </Link>
+                    <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-navy-900">
+                        Dashboard
+                    </Link>
+                </div>
+
                 <div className="flex items-center gap-4">
                     {loading ? (
                         <Loader2 className="h-4 w-4 animate-spin text-gray-500" />

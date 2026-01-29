@@ -6,15 +6,27 @@ export async function POST(request: Request) {
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
 
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
-
         const json = await request.json()
-        const { storage_path, theme } = json
+        const { storage_path, theme, is_guest } = json
 
         if (!storage_path || !theme) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+        }
+
+        // 0. Guest Mode Bypass
+        if (is_guest) {
+            console.log('Guest Request: Returning Mock Response')
+            return NextResponse.json({
+                success: true,
+                message: 'Guest generation processing started',
+                imageId: 'guest-mock-id',
+                guest: true
+            })
+        }
+
+        // Standard Auth Check
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         // 1. Get the public URL of the uploaded image

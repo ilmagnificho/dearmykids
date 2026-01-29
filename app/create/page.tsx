@@ -27,25 +27,37 @@ export default function CreatePage() {
         setUploading(true)
 
         try {
-            // 1. Upload to Supabase Storage
-            const fileExt = 'jpg'
-            const fileName = `${Date.now()}.${fileExt}`
-            const filePath = `${fileName}`
+            // Check User Session
+            const { data: { user } } = await supabase.auth.getUser()
+            const isGuest = !user
 
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('uploads')
-                .upload(filePath, blob, {
-                    contentType: 'image/jpeg'
-                })
+            let filePath = ''
 
-            if (uploadError) throw uploadError
+            if (!isGuest) {
+                // 1. Upload to Supabase Storage (Only for logged-in users)
+                const fileExt = 'jpg'
+                const fileName = `${Date.now()}.${fileExt}`
+                filePath = `${fileName}` // Relative path
+
+                const { error: uploadError } = await supabase.storage
+                    .from('uploads')
+                    .upload(filePath, blob, {
+                        contentType: 'image/jpeg'
+                    })
+
+                if (uploadError) throw uploadError
+            } else {
+                console.log('Guest Mode: Skipping Storage Upload')
+                filePath = 'guest_demo.jpg' // Dummy path
+            }
 
             // 2. Call Generate API
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 body: JSON.stringify({
                     storage_path: filePath,
-                    theme: selectedTheme
+                    theme: selectedTheme,
+                    is_guest: isGuest
                 })
             })
 
@@ -53,9 +65,14 @@ export default function CreatePage() {
 
             const result = await response.json()
 
-            // For MVP, if it was sync or we just want to show "Requested"
-            alert('Image generation started! You will be notified when ready.')
-            router.push('/dashboard') // Redirect to dashboard to see result
+            // 3. Redirect
+            if (isGuest) {
+                alert('Guest Mode: Showing demo result!')
+                router.push('/dashboard?guest=true')
+            } else {
+                alert('Image generation started! You will be notified when ready.')
+                router.push('/dashboard')
+            }
 
         } catch (error: any) {
             console.error(error)

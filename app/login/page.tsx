@@ -79,6 +79,24 @@ export default function LoginPage() {
                         </Button>
                     </div>
 
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-stone-50 px-2 text-gray-500">Or continue with</span>
+                        </div>
+                    </div>
+
+                    <Button
+                        variant="ghost"
+                        className="w-full h-12 text-base font-medium border-2 border-dashed border-gray-300 text-gray-600 hover:bg-gray-100"
+                        onClick={() => window.location.href = '/create'}
+                        disabled={loading}
+                    >
+                        Guest로 체험하기 (No Login)
+                    </Button>
+
                     <p className="text-center text-xs text-gray-400 mt-8">
                         By continuing, you simply agree to our harmless Terms of Service.
                     </p>
