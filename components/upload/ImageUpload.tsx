@@ -20,9 +20,44 @@ export function ImageUpload({ onImageSelected }: ImageUploadProps) {
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
     const [processing, setProcessing] = useState(false)
 
-    const onDrop = useCallback((acceptedFiles: File[]) => {
+    const onDrop = useCallback(async (acceptedFiles: File[]) => {
         if (acceptedFiles && acceptedFiles.length > 0) {
             const file = acceptedFiles[0]
+
+            // 1. File size validation (max 5MB)
+            const MAX_FILE_SIZE_MB = 5
+            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                alert(`File is too large. Max ${MAX_FILE_SIZE_MB}MB allowed.`)
+                return
+            }
+
+            // 2. Image dimensions validation (min 500x500)
+            const MIN_DIMENSION = 500
+            const img = new Image()
+            const objectUrl = URL.createObjectURL(file) // Create object URL for dimension check
+            img.src = objectUrl
+
+            await new Promise<void>((resolve) => {
+                img.onload = () => {
+                    resolve()
+                }
+                img.onerror = () => {
+                    alert('Could not load image to check dimensions.')
+                    URL.revokeObjectURL(objectUrl)
+                    resolve()
+                }
+            })
+
+            // After image loads or errors
+            if (img.width < MIN_DIMENSION || img.height < MIN_DIMENSION) {
+                alert(`Image is too small. Please upload at least ${MIN_DIMENSION}x${MIN_DIMENSION}px for best results.`)
+                URL.revokeObjectURL(objectUrl) // Clean up object URL
+                return
+            }
+
+            URL.revokeObjectURL(objectUrl) // Clean up object URL after successful dimension check
+
+            // If all validations pass, proceed to set imageSrc for cropping
             const reader = new FileReader()
             reader.addEventListener('load', () => setImageSrc(reader.result as string))
             reader.readAsDataURL(file)

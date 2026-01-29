@@ -53,11 +53,35 @@ export default function CreatePage() {
     const [selectedFormat, setSelectedFormat] = useState('square')
     const [selectedShot, setSelectedShot] = useState('portrait')
     const [uploading, setUploading] = useState(false)
+    const [loadingMessage, setLoadingMessage] = useState('') // Dynamic loading steps
     const [isPremiumUser] = useState(false) // TODO: Check from auth/subscription
     const [cachedPhoto, setCachedPhoto] = useState<string | null>(null) // Base64 cached photo
     const [useCachedPhoto, setUseCachedPhoto] = useState(false)
     const supabase = createClient()
     const router = useRouter()
+
+    // Loading message rotation
+    useEffect(() => {
+        if (!uploading) return
+
+        const messages = [
+            'Scanning for cuteness...',
+            'Designing the perfect outfit...',
+            'Adjusting studio lighting...',
+            'Capturing the moment...'
+        ]
+
+        // Initial message
+        setLoadingMessage(messages[0])
+
+        let i = 0
+        const interval = setInterval(() => {
+            i = (i + 1) % messages.length
+            setLoadingMessage(messages[i])
+        }, 3000)
+
+        return () => clearInterval(interval)
+    }, [uploading])
 
     // Load cached photo from sessionStorage on mount
     useEffect(() => {
@@ -349,9 +373,18 @@ export default function CreatePage() {
 
                     {uploading ? (
                         <div className="text-center py-16">
-                            <Loader2 className="w-12 h-12 animate-spin mx-auto text-amber-500 mb-4" />
-                            <p className="text-lg font-medium">{t.create.creating}</p>
-                            <p className="text-sm text-gray-500">{t.create.creatingTime}</p>
+                            <div className="relative w-20 h-20 mx-auto mb-6">
+                                <div className="absolute inset-0 border-4 border-amber-200 rounded-full opacity-25 animate-ping"></div>
+                                <div className="relative bg-white p-4 rounded-full shadow-lg border-2 border-amber-100">
+                                    <Loader2 className="w-10 h-10 animate-spin text-amber-500" />
+                                </div>
+                            </div>
+                            <h2 className="text-xl font-bold mb-2 animate-pulse text-amber-900">
+                                {loadingMessage || t.create.creating}
+                            </h2>
+                            <p className="text-gray-500 max-w-xs mx-auto">
+                                {t.create.creatingTime || 'This takes about 10-20 seconds'}
+                            </p>
                         </div>
                     ) : (
                         <>
@@ -404,6 +437,17 @@ export default function CreatePage() {
                             </div>
 
                             <ImageUpload onImageSelected={handleImageSelected} />
+
+                            {/* Privacy Assurance */}
+                            <div className="text-center mt-4">
+                                <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+                                    <Lock className="w-3 h-3" />
+                                    {t.create.privacyNote || 'Photos are deleted after 24h. No AI training.'}
+                                    <a href="/about" target="_blank" className="underline hover:text-gray-600 ml-1">
+                                        {t.create.learnMore || 'Learn more'}
+                                    </a>
+                                </p>
+                            </div>
                         </>
                     )}
 

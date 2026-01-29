@@ -152,6 +152,14 @@ CRITICAL REQUIREMENTS:
 
         // Guest Mode Response
         if (is_guest) {
+            // STRICT VALIDATION FOR GUESTS
+            if (!isFreeTheme || !isFreeFormat || !isFreeShot) {
+                return NextResponse.json({
+                    error: 'Premium features (theme, format, or shot type) are not available for guests.',
+                    code: 'PREMIUM_REQUIRED'
+                }, { status: 403 })
+            }
+
             return NextResponse.json({
                 success: true,
                 message: 'Guest generation successful',

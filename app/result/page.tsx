@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Download, Share2, RefreshCw, Home, Sparkles, Gift, Check } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale } from '@/contexts/LocaleContext'
+import { ComparisonSlider } from '@/components/ui/ComparisonSlider'
 
 function ResultContent() {
     const searchParams = useSearchParams()
@@ -17,6 +18,14 @@ function ResultContent() {
     const [isGuest, setIsGuest] = useState(false)
     const [isShared, setIsShared] = useState(false)
     const [sharing, setSharing] = useState(false)
+    const [originalImage, setOriginalImage] = useState<string | null>(null)
+
+    useEffect(() => {
+        const cached = sessionStorage.getItem('dearmykids_cached_photo')
+        if (cached) {
+            setOriginalImage(`data:image/jpeg;base64,${cached}`)
+        }
+    }, [])
 
     useEffect(() => {
         const guestParam = searchParams.get('guest') === 'true'
@@ -70,42 +79,55 @@ function ResultContent() {
 
         const themeLabel = t.themes[theme as keyof typeof t.themes] || theme
         const shareText = `${themeLabel} - DearMyKids`
+        const shareMessage = t.result?.shareMessage || 'Check out this future portrait created with DearMyKids!'
 
-        // Try native share first
-        if (navigator.share) {
-            try {
-                // For data URLs, we need to convert to blob for sharing
-                if (imageUrl.startsWith('data:')) {
-                    const response = await fetch(imageUrl)
-                    const blob = await response.blob()
-                    const file = new File([blob], `dearmykids-${theme}.png`, { type: 'image/png' })
-
-                    await navigator.share({
-                        title: shareText,
-                        text: 'Check out this portrait created with DearMyKids!',
-                        files: [file],
-                    })
-                } else {
-                    await navigator.share({
-                        title: shareText,
-                        text: 'Check out this portrait created with DearMyKids!',
-                        url: window.location.href,
-                    })
-                }
-                return
-            } catch (error) {
-                // User cancelled or share failed, fall through to clipboard
-                console.log('Share cancelled or failed')
-            }
-        }
-
-        // Fallback: copy URL
+        setSharing(true)
         try {
-            await navigator.clipboard.writeText(window.location.href)
-            alert('Link copied to clipboard!')
-        } catch {
-            // Final fallback
-            window.open(imageUrl, '_blank')
+            // Convert to File for native sharing
+            const response = await fetch(imageUrl)
+            const blob = await response.blob()
+            const file = new File([blob], `dearmykids-${theme}.png`, { type: 'image/png' })
+
+            // 1. Try Native Share with File (Mobile Best)
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: shareText,
+                    text: shareMessage,
+                    files: [file],
+                })
+                return
+            }
+
+            // 2. Try Native Share with URL (if file not supported)
+            // Note: For guest results, the page URL is useless for others. 
+            // We share the Image URL directly if it's a public URL (Supabase), otherwise we can't share a link.
+            if (imageUrl.startsWith('http') && navigator.share) {
+                await navigator.share({
+                    title: shareText,
+                    text: shareMessage,
+                    url: imageUrl, // Share the direct image link
+                })
+                return
+            }
+
+            // 3. Fallback: Download (Desktop/Unsupported)
+            // If we can't share, we just download it or copy to clipboard
+            if (imageUrl.startsWith('http')) {
+                await navigator.clipboard.writeText(imageUrl)
+                alert(t.result?.linkCopied || 'Image link copied!')
+            } else {
+                // Data URL - just download
+                handleDownload()
+            }
+
+        } catch (error) {
+            console.error('Share failed:', error)
+            // Fallback
+            if (imageUrl.startsWith('http')) {
+                window.open(imageUrl, '_blank')
+            }
+        } finally {
+            setSharing(false)
         }
     }
 
@@ -161,15 +183,26 @@ function ResultContent() {
                 </p>
             </div>
 
+
+
             {/* Main Result Image */}
             <Card className="overflow-hidden mb-8 shadow-xl">
-                <div className="aspect-square relative bg-slate-100">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                        src={imageUrl}
-                        alt={`Child as ${themeLabel}`}
-                        className="w-full h-full object-contain"
-                    />
+                <div className="relative bg-slate-100">
+                    {originalImage ? (
+                        <ComparisonSlider
+                            beforeImage={originalImage}
+                            afterImage={imageUrl}
+                        />
+                    ) : (
+                        <div className="aspect-square relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={imageUrl}
+                                alt={`Child as ${themeLabel}`}
+                                className="w-full h-full object-contain"
+                            />
+                        </div>
+                    )}
                 </div>
             </Card>
 
@@ -194,36 +227,40 @@ function ResultContent() {
             </div>
 
             {/* Share to Gallery CTA (for logged-in users) */}
-            {!isGuest && !isShared && (
-                <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-200">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-purple-100 rounded-lg">
-                                <Gift className="w-6 h-6 text-purple-600" />
+            {
+                !isGuest && !isShared && (
+                    <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-200">
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-purple-100 rounded-lg">
+                                    <Gift className="w-6 h-6 text-purple-600" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-purple-900">{t.result.shareToGallery}</p>
+                                    <p className="text-sm text-purple-700">{t.result.shareReward}</p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="font-semibold text-purple-900">{t.result.shareToGallery}</p>
-                                <p className="text-sm text-purple-700">{t.result.shareReward}</p>
-                            </div>
+                            <Button
+                                onClick={handleShareToGallery}
+                                disabled={sharing}
+                                className="bg-purple-600 hover:bg-purple-700"
+                            >
+                                {sharing ? '...' : t.result.shareToGallery}
+                            </Button>
                         </div>
-                        <Button
-                            onClick={handleShareToGallery}
-                            disabled={sharing}
-                            className="bg-purple-600 hover:bg-purple-700"
-                        >
-                            {sharing ? '...' : t.result.shareToGallery}
-                        </Button>
+                        <p className="text-xs text-purple-600 mt-3">{t.result.shareConfirm}</p>
                     </div>
-                    <p className="text-xs text-purple-600 mt-3">{t.result.shareConfirm}</p>
-                </div>
-            )}
+                )
+            }
 
-            {isShared && (
-                <div className="mb-8 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
-                    <Check className="w-5 h-5 text-green-600" />
-                    <p className="text-green-800">{t.result.shareSuccess}</p>
-                </div>
-            )}
+            {
+                isShared && (
+                    <div className="mb-8 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
+                        <Check className="w-5 h-5 text-green-600" />
+                        <p className="text-green-800">{t.result.shareSuccess}</p>
+                    </div>
+                )
+            }
 
             {/* Next Actions */}
             <div className="border-t pt-8">
@@ -259,18 +296,20 @@ function ResultContent() {
             </div>
 
             {/* Guest Sign-up CTA */}
-            {isGuest && (
-                <div className="mt-12 p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-amber-200 text-center">
-                    <h3 className="text-xl font-bold mb-2">{t.result.loveResult}</h3>
-                    <p className="text-gray-600 mb-4">{t.result.signUpCta}</p>
-                    <Link href="/login">
-                        <Button className="bg-amber-600 hover:bg-amber-700">
-                            {t.result.createAccount}
-                        </Button>
-                    </Link>
-                </div>
-            )}
-        </div>
+            {
+                isGuest && (
+                    <div className="mt-12 p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-amber-200 text-center">
+                        <h3 className="text-xl font-bold mb-2">{t.result.loveResult}</h3>
+                        <p className="text-gray-600 mb-4">{t.result.signUpCta}</p>
+                        <Link href="/login">
+                            <Button className="bg-amber-600 hover:bg-amber-700">
+                                {t.result.createAccount}
+                            </Button>
+                        </Link>
+                    </div>
+                )
+            }
+        </div >
     )
 }
 

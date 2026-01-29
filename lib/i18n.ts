@@ -48,6 +48,8 @@ export const translations = {
             usePreviousPhotoDesc: '방금 업로드한 사진으로 다른 직업 만들기',
             uploadNewPhoto: '새 사진 업로드',
             or: '또는',
+            privacyNote: '원본 사진은 24시간 후 자동 삭제되며 학습에 사용되지 않습니다.',
+            learnMore: '자세히 보기',
         },
         // Result page
         result: {
@@ -68,6 +70,17 @@ export const translations = {
             loveResult: '결과가 마음에 드셨나요?',
             signUpCta: '회원가입하고 포트레이트를 저장하세요!',
             createAccount: '무료 계정 만들기',
+            shareMessage: 'DearMyKids로 만든 우리 아이의 미래 모습을 확인해보세요!',
+            linkCopied: '이미지 링크가 복사되었습니다!',
+            emptyState: '포트레이트를 만들어 컬렉션을 채워보세요!',
+        },
+        // Invite
+        invite: {
+            title: '친구 초대하고 무료 이용권 받기',
+            description: '친구에게 링크를 공유하세요. 친구가 가입하면 두 분 모두에게 1회 무료 이용권을 드립니다!',
+            badge: '초대 이벤트',
+            shareBtn: '링크 공유하기',
+            shareText: '우리 아이의 미래 모습을 확인해보세요! 지금 가입하면 1회 무료!',
         },
         // Themes
         themes: {
@@ -102,6 +115,8 @@ export const translations = {
             error: '오류가 발생했습니다',
             noResult: '결과를 찾을 수 없습니다',
             createNew: '새로 만들기',
+            unlock: '잠금 해제',
+            collected: '수집됨',
         },
     },
     en: {
@@ -149,6 +164,8 @@ export const translations = {
             usePreviousPhotoDesc: 'Create another career with the same photo',
             uploadNewPhoto: 'Upload New Photo',
             or: 'or',
+            privacyNote: 'Photos are deleted after 24h & never used for training.',
+            learnMore: 'Learn more',
         },
         // Result page
         result: {
@@ -169,6 +186,17 @@ export const translations = {
             loveResult: 'Love the result?',
             signUpCta: 'Sign up to save your portraits!',
             createAccount: 'Create Free Account',
+            shareMessage: 'Check out this future portrait created with DearMyKids!',
+            linkCopied: 'Image link copied!',
+            emptyState: 'Start creating portraits to fill your collection!',
+        },
+        // Invite
+        invite: {
+            title: 'Invite Friends & Get Free Credits',
+            description: 'Share your link. When a friend signs up, you BOTH get 1 free credit!',
+            badge: 'Referral Program',
+            shareBtn: 'Share Link',
+            shareText: 'Check out DearMyKids! Get 1 free credit when you sign up.',
         },
         // Themes
         themes: {
@@ -203,6 +231,8 @@ export const translations = {
             error: 'An error occurred',
             noResult: 'No result found',
             createNew: 'Create New',
+            unlock: 'Unlock',
+            collected: 'Collected',
         },
     },
 }

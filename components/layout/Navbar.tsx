@@ -51,8 +51,17 @@ export function Navbar() {
                     <Link href="/pricing" className="text-sm font-medium text-gray-600 hover:text-navy-900">
                         Pricing
                     </Link>
+                    <Link href="/collection" className="text-sm font-medium text-gray-600 hover:text-navy-900">
+                        Collection
+                    </Link>
+                    <Link href="/invite" className="text-sm font-medium text-gray-600 hover:text-navy-900">
+                        Invite
+                    </Link>
                     <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-navy-900">
                         Dashboard
+                    </Link>
+                    <Link href="/about" className="text-sm font-medium text-gray-600 hover:text-navy-900">
+                        About
                     </Link>
                 </div>
 

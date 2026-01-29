@@ -11,6 +11,8 @@ export default function LoginPage() {
 
     const handleLogin = async (provider: 'google' | 'kakao') => {
         setLoading(true)
+        const referralCode = sessionStorage.getItem('dearmykids_referral')
+
         const { error } = await supabase.auth.signInWithOAuth({
             provider,
             options: {
