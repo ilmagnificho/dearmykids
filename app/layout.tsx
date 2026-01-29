@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from 'next/font/google'
 import Script from 'next/script'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
+import { Footer } from '@/components/layout/Footer'
 import { LocaleProvider } from '@/contexts/LocaleContext'
 
 const GA_ID = 'G-P22MPFLKPG'
@@ -98,6 +99,7 @@ export default function RootLayout({
         <LocaleProvider>
           <Navbar />
           <main>{children}</main>
+          <Footer />
         </LocaleProvider>
       </body>
     </html>

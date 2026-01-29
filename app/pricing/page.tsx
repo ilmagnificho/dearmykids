@@ -91,8 +91,8 @@ export default function PricingPage() {
                         <Card
                             key={pkg.id}
                             className={`p-6 relative transition-all hover:shadow-lg ${isPopular
-                                    ? 'border-2 border-amber-500 shadow-amber-100'
-                                    : 'border-2 hover:border-gray-300'
+                                ? 'border-2 border-amber-500 shadow-amber-100'
+                                : 'border-2 hover:border-gray-300'
                                 }`}
                         >
                             {/* Popular Badge */}
@@ -154,8 +154,8 @@ export default function PricingPage() {
                             {/* Buy Button */}
                             <Button
                                 className={`w-full ${isPopular
-                                        ? 'bg-amber-500 hover:bg-amber-600'
-                                        : 'bg-slate-800 hover:bg-slate-700'
+                                    ? 'bg-amber-500 hover:bg-amber-600'
+                                    : 'bg-slate-800 hover:bg-slate-700'
                                     }`}
                                 onClick={() => handlePurchase(pkg.id)}
                                 disabled={loading !== null}
@@ -197,8 +197,8 @@ export default function PricingPage() {
                         </p>
                         <p className="text-sm text-gray-600">
                             {locale === 'ko'
-                                ? '아니요! 구매한 크레딧은 무기한 유효합니다.'
-                                : 'No! Purchased credits never expire.'}
+                                ? '아니요, 구매하신 크레딧은 유효기간 없이 언제든 사용하실 수 있습니다.'
+                                : 'No, purchased credits do not expire. You can use them whenever you like.'}
                         </p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
@@ -207,18 +207,18 @@ export default function PricingPage() {
                         </p>
                         <p className="text-sm text-gray-600">
                             {locale === 'ko'
-                                ? '미사용 크레딧에 한해 7일 이내 환불 가능합니다.'
-                                : 'Unused credits can be refunded within 7 days.'}
+                                ? '미사용 크레딧에 한해 구매 후 7일 이내 환불 가능합니다. 이미 사용된 크레딧은 환불되지 않습니다.'
+                                : 'Refunds are available for unused credits within 7 days of purchase. Used credits are non-refundable.'}
                         </p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                         <p className="font-medium mb-1">
-                            {locale === 'ko' ? '생성된 이미지는 얼마나 보관되나요?' : 'How long are images stored?'}
+                            {locale === 'ko' ? '생성된 이미지는 얼마나 보관되나요?' : 'How long are generated images stored?'}
                         </p>
                         <p className="text-sm text-gray-600">
                             {locale === 'ko'
-                                ? '48시간 동안 서버에 보관됩니다. 즉시 다운로드하세요!'
-                                : 'Images are stored for 48 hours. Download immediately!'}
+                                ? '생성된 포트레이트는 48시간 동안만 서버에 보관됩니다. 기간 내에 꼭 다운로드해주세요!'
+                                : 'Generated portraits are stored for 48 hours only. Please make sure to download them before they expire.'}
                         </p>
                     </div>
                 </div>
