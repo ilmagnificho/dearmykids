@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card } from '@/components/ui/card'
@@ -29,7 +29,7 @@ const MOCK_GALLERY = [
     }
 ]
 
-export default function DashboardPage() {
+function DashboardContent() {
     const supabase = createClient()
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -117,5 +117,13 @@ export default function DashboardPage() {
                 </div>
             )}
         </div>
+    )
+}
+
+export default function DashboardPage() {
+    return (
+        <Suspense fallback={<div className="p-8 text-center">Loading dashboard...</div>}>
+            <DashboardContent />
+        </Suspense>
     )
 }
