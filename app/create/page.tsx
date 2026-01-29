@@ -80,23 +80,20 @@ export default function CreatePage() {
 
             const result = await response.json()
 
-            // 3. Redirect
-            if (isGuest) {
-                // Store actual result in local storage for guest
-                if (result.imageUrl) {
-                    const guestResult = {
-                        id: 'guest-' + Date.now(),
-                        theme: selectedTheme,
-                        image_url: result.imageUrl,
-                        created_at: new Date().toISOString()
-                    }
-                    localStorage.setItem('guest_latest_result', JSON.stringify(guestResult))
+            // 3. Save result and redirect to result page
+            if (result.imageUrl) {
+                const resultData = {
+                    id: isGuest ? 'guest-' + Date.now() : result.imageId,
+                    theme: selectedTheme,
+                    image_url: result.imageUrl,
+                    created_at: new Date().toISOString()
                 }
-                alert('Guest Mode: Generation Complete!')
-                router.push('/dashboard?guest=true')
+                localStorage.setItem('guest_latest_result', JSON.stringify(resultData))
+
+                // Redirect to result page to show the generated image
+                router.push(`/result?guest=${isGuest}`)
             } else {
-                alert('Image generation started! You will be notified when ready.')
-                router.push('/dashboard')
+                throw new Error('No image returned from generation')
             }
 
         } catch (error: any) {

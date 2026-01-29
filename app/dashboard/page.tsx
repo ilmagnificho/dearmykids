@@ -7,27 +7,11 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
-// Mock Data for Guest Gallery
-const MOCK_GALLERY = [
-    {
-        id: 'mock-1',
-        theme: 'Astronaut',
-        image_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80',
-        created_at: new Date().toISOString()
-    },
-    {
-        id: 'mock-2',
-        theme: 'Doctor',
-        image_url: 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&q=80',
-        created_at: new Date().toISOString()
-    },
-    {
-        id: 'mock-3',
-        theme: 'K-Pop Star',
-        image_url: 'https://images.unsplash.com/photo-1516280440614-6697288d5d38?auto=format&fit=crop&q=80',
-        created_at: new Date().toISOString()
-    }
-]
+const THEME_LABELS: Record<string, string> = {
+    'astronaut': 'Astronaut',
+    'doctor': 'Doctor',
+    'kpop_star': 'K-Pop Star',
+}
 
 function DashboardContent() {
     const supabase = createClient()
@@ -47,15 +31,16 @@ function DashboardContent() {
             setUser(user)
 
             if (isGuestParam || !user) {
-                // Guest View
+                // Guest View - Show only what they created (no mock data)
                 const storedResult = localStorage.getItem('guest_latest_result')
-                let guestImages = [...MOCK_GALLERY]
+                const guestImages: any[] = []
 
                 if (storedResult) {
                     try {
                         const newImage = JSON.parse(storedResult)
-                        // Add to beginning of array
-                        guestImages = [newImage, ...MOCK_GALLERY]
+                        // Format theme label properly
+                        newImage.theme = THEME_LABELS[newImage.theme] || newImage.theme
+                        guestImages.push(newImage)
                     } catch (e) {
                         console.error('Failed to parse guest result', e)
                     }
@@ -63,13 +48,23 @@ function DashboardContent() {
                 setImages(guestImages)
             } else {
                 // User View - Fetch from DB
-                // TODO: Implement fetch
-                console.log('Fetching user images...')
+                try {
+                    const { data, error } = await supabase
+                        .from('generated_images')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .order('created_at', { ascending: false })
+
+                    if (error) throw error
+                    setImages(data || [])
+                } catch (error) {
+                    console.error('Error fetching images:', error)
+                }
             }
             setLoading(false)
         }
         checkUser()
-    }, [isGuestParam])
+    }, [isGuestParam, supabase])
 
     if (loading) {
         return <div className="p-8 text-center">Loading...</div>
@@ -104,9 +99,11 @@ function DashboardContent() {
 
             {images.length === 0 ? (
                 <div className="text-center py-20 bg-stone-50 rounded-xl border-2 border-dashed">
-                    <p className="text-gray-500 mb-4">No images found.</p>
+                    <div className="text-6xl mb-4">✨</div>
+                    <h3 className="text-xl font-medium mb-2">No portraits yet</h3>
+                    <p className="text-gray-500 mb-6">Create your first AI-generated portrait!</p>
                     <Link href="/create">
-                        <Button variant="outline">Create your first portrait</Button>
+                        <Button className="bg-amber-600 hover:bg-amber-700">Create Your First Portrait</Button>
                     </Link>
                 </div>
             ) : (
