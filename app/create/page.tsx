@@ -67,7 +67,17 @@ export default function CreatePage() {
 
             // 3. Redirect
             if (isGuest) {
-                alert('Guest Mode: Showing demo result!')
+                // Store actual result in local storage for guest
+                if (result.imageUrl) {
+                    const guestResult = {
+                        id: 'guest-' + Date.now(),
+                        theme: selectedTheme,
+                        image_url: result.imageUrl,
+                        created_at: new Date().toISOString()
+                    }
+                    localStorage.setItem('guest_latest_result', JSON.stringify(guestResult))
+                }
+                alert('Guest Mode: Generation Complete!')
                 router.push('/dashboard?guest=true')
             } else {
                 alert('Image generation started! You will be notified when ready.')

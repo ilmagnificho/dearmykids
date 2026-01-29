@@ -48,7 +48,19 @@ function DashboardContent() {
 
             if (isGuestParam || !user) {
                 // Guest View
-                setImages(MOCK_GALLERY)
+                const storedResult = localStorage.getItem('guest_latest_result')
+                let guestImages = [...MOCK_GALLERY]
+
+                if (storedResult) {
+                    try {
+                        const newImage = JSON.parse(storedResult)
+                        // Add to beginning of array
+                        guestImages = [newImage, ...MOCK_GALLERY]
+                    } catch (e) {
+                        console.error('Failed to parse guest result', e)
+                    }
+                }
+                setImages(guestImages)
             } else {
                 // User View - Fetch from DB
                 // TODO: Implement fetch
