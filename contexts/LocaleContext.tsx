@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { Locale, getTranslations, detectLocale, translations } from '@/lib/i18n'
+import { Locale, getTranslations, translations } from '@/lib/i18n'
 
 type TranslationType = typeof translations.en
 
@@ -11,29 +11,43 @@ interface LocaleContextType {
     t: TranslationType
 }
 
-const LocaleContext = createContext<LocaleContextType | undefined>(undefined)
+// Default context value for SSR
+const defaultContext: LocaleContextType = {
+    locale: 'en',
+    setLocale: () => {},
+    t: translations.en
+}
+
+const LocaleContext = createContext<LocaleContextType>(defaultContext)
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
     const [locale, setLocaleState] = useState<Locale>('en')
     const [mounted, setMounted] = useState(false)
 
     useEffect(() => {
-        const detected = detectLocale()
-        setLocaleState(detected)
+        // Detect locale on client side
+        const stored = localStorage.getItem('locale') as Locale | null
+        if (stored && (stored === 'ko' || stored === 'en')) {
+            setLocaleState(stored)
+        } else {
+            // Auto-detect from browser
+            const browserLang = navigator.language.toLowerCase()
+            const detected: Locale = browserLang.startsWith('ko') ? 'ko' : 'en'
+            setLocaleState(detected)
+        }
         setMounted(true)
     }, [])
 
     const setLocale = (newLocale: Locale) => {
         setLocaleState(newLocale)
-        localStorage.setItem('locale', newLocale)
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('locale', newLocale)
+        }
     }
 
     const t = getTranslations(locale)
 
-    if (!mounted) {
-        return <>{children}</>
-    }
-
+    // Always provide context, use default 'en' until mounted
     return (
         <LocaleContext.Provider value={{ locale, setLocale, t }}>
             {children}
@@ -42,9 +56,5 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 }
 
 export function useLocale() {
-    const context = useContext(LocaleContext)
-    if (!context) {
-        throw new Error('useLocale must be used within a LocaleProvider')
-    }
-    return context
+    return useContext(LocaleContext)
 }
