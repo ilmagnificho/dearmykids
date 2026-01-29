@@ -1,8 +1,11 @@
 import type { Metadata } from 'next'
 import { Inter, Playfair_Display } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 import { LocaleProvider } from '@/contexts/LocaleContext'
+
+const GA_ID = 'G-P22MPFLKPG'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' })
@@ -77,6 +80,19 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <meta name="theme-color" content="#f59e0b" />
+        {/* Google Analytics */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_ID}');
+          `}
+        </Script>
       </head>
       <body className={`${inter.variable} ${playfair.variable} font-sans min-h-screen bg-stone-50 text-stone-900`}>
         <LocaleProvider>
