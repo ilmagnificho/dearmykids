@@ -57,39 +57,66 @@ export async function POST(request: Request) {
 
         console.log('Final Prompt:', prompt)
 
-        // 3. Image Generation Phase (Imagen 3)
-        const model = genAI.getGenerativeModel({ model: "imagen-3.0-generate-001" }) as any;
+        // 3. Image Generation Phase (Imagen 3 via REST)
+        // Note: The SDK's 'generateImages' method is not available in all versions/regions yet.
+        // We fallback to direct REST API call for Imagen 3.
 
         let resultUrl = ''
 
         try {
-            const result = await model.generateImages({
-                prompt: prompt,
-                numberOfImages: 1,
-            });
-            const response = result.response;
-            const predictions = response.predictions || response.images;
-
-            if (predictions && predictions.length > 0) {
-                const firstImage = predictions[0];
-                if (firstImage.bytesBase64Encoded) {
-                    resultUrl = `data: image / jpeg; base64, ${firstImage.bytesBase64Encoded} `
-                } else if (firstImage.url) {
-                    resultUrl = firstImage.url
-                } else if (typeof firstImage === 'string') {
-                    resultUrl = `data: image / jpeg; base64, ${firstImage} `
+            console.log('Calling Imagen 3 REST API...')
+            // Try explicit endpoint for Imagen 3
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        instances: [
+                            {
+                                prompt: prompt,
+                            },
+                        ],
+                        parameters: {
+                            sampleCount: 1,
+                            aspectRatio: "1:1"
+                        },
+                    }),
                 }
+            )
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error('Imagen 3 API Error:', response.status, errorText)
+
+                // If 404, valid Key but model not found -> Permission/Availability issue
+                if (response.status === 404) {
+                    throw new Error('Imagen 3 Model not found (404). This API key may not have access to Imagen 3.')
+                }
+                throw new Error(`Imagen 3 Failed: ${response.status} ${response.statusText}`)
             }
-        } catch (sdkError: any) {
-            console.warn('SDK Generate Images failed:', sdkError)
-            if (sdkError.message?.includes('404')) {
-                throw new Error('Imagen 3 Model Not Found. Your API Key may not have access.')
+
+            const data = await response.json()
+
+            if (data.predictions && data.predictions[0]?.bytesBase64Encoded) {
+                const base64Image = data.predictions[0].bytesBase64Encoded
+                resultUrl = `data:image/jpeg;base64,${base64Image}`
+            } else if (data.predictions && data.predictions[0]?.mimeType && data.predictions[0]?.bytesBase64Encoded) {
+                resultUrl = `data:${data.predictions[0].mimeType};base64,${data.predictions[0].bytesBase64Encoded}`
+            } else {
+                console.error('Unexpected Imagen response:', data)
+                throw new Error('No image data in Imagen response')
             }
-            throw sdkError
+
+        } catch (error: any) {
+            console.error('Image Generation Logic Failed:', error)
+            throw error
         }
 
         if (!resultUrl) {
-            throw new Error('No image data returned from Gemini SDK')
+            throw new Error('Failed to generate image.')
         }
 
         // 0. Guest Mode Response
