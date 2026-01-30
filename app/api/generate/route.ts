@@ -362,24 +362,44 @@ Do not cartoonize unless specified. Make it look like a real professional photo.
         const needsCredits = !canUseFree
 
         // Deduct credit or update daily free count
+        // Deduct credit or update daily free count
         if (canUseFree) {
-            await supabase
+            console.log(`[API] Using Free Tier. Incrementing usage from ${dailyFreeUsed} to ${dailyFreeUsed + 1}`)
+            const { error: updateError } = await supabase
                 .from('user_profiles')
-                .upsert({
-                    user_id: user!.id,
+                .update({
                     daily_free_used: dailyFreeUsed + 1,
                     daily_free_date: today,
                     updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id' })
+                })
+                .eq('user_id', user!.id)
+
+            if (updateError) {
+                console.error('[API] Failed to update daily free usage:', updateError)
+                // We should technically fail here, but proceed to avoid user frustration if generation succeeded?
+                // No, we must enforce limits. But we are AFTER generation. 
+                // We'll log it as CRITICAL. Ideally we should have deducted BEFORE generation if we wanted to be strict.
+                // But previously we moved checks to top. The update is just record keeping now.
+                // If this fails, they get a freebee.
+            } else {
+                console.log('[API] Daily free usage updated successfully')
+            }
         } else {
+            console.log(`[API] Using Credits. Deducting from ${currentCredits}`)
             // Double check credits didn't disappear (race condition), but usually fine.
-            await supabase
+            const { error: updateError } = await supabase
                 .from('user_profiles')
                 .update({
                     credits: currentCredits - 1,
                     updated_at: new Date().toISOString()
                 })
                 .eq('user_id', user!.id)
+
+            if (updateError) {
+                console.error('[API] Failed to deduct credits:', updateError)
+            } else {
+                console.log('[API] Credits deducted successfully')
+            }
         }
 
         // Save to Storage and DB
