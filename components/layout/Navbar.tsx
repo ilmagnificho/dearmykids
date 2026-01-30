@@ -16,16 +16,36 @@ export function Navbar() {
     const supabase = createClient()
     const pathname = usePathname()
 
+    // Add credit state
+    const [credits, setCredits] = useState<number | null>(null)
+
     useEffect(() => {
         const checkUser = async () => {
             const { data: { user } } = await supabase.auth.getUser()
             setUser(user)
+
+            if (user) {
+                const { data: profile } = await supabase
+                    .from('user_profiles')
+                    .select('credits')
+                    .eq('user_id', user.id)
+                    .single()
+                if (profile) setCredits(profile.credits)
+            }
             setLoading(false)
         }
         checkUser()
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setUser(session?.user ?? null)
+            if (session?.user) {
+                const { data: profile } = await supabase
+                    .from('user_profiles')
+                    .select('credits')
+                    .eq('user_id', session.user.id)
+                    .single()
+                if (profile) setCredits(profile.credits)
+            }
         })
 
         return () => subscription.unsubscribe()
@@ -56,9 +76,9 @@ export function Navbar() {
                     <Link href="/collection" className="text-sm font-medium text-gray-600 hover:text-navy-900">
                         {locale === 'ko' ? '컬렉션' : 'Collection'}
                     </Link>
-                    <Link href="/invite" className="text-sm font-medium text-gray-600 hover:text-navy-900">
+                    {/* <Link href="/invite" className="text-sm font-medium text-gray-600 hover:text-navy-900">
                         {locale === 'ko' ? '초대하기' : 'Invite'}
-                    </Link>
+                    </Link> */}
                     <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-navy-900">
                         {locale === 'ko' ? '대시보드' : 'Dashboard'}
                     </Link>
@@ -81,8 +101,14 @@ export function Navbar() {
                         <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
                     ) : user ? (
                         <div className="flex items-center gap-4">
-                            <span className="text-sm font-medium hidden sm:inline-block">
-                                {user.email}
+                            {/* Credits Display */}
+                            {credits !== null && (
+                                <div className="hidden sm:flex items-center gap-1 bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold">
+                                    <span>⚡ {credits} {locale === 'ko' ? '크레딧' : 'Credits'}</span>
+                                </div>
+                            )}
+                            <span className="text-sm font-medium hidden sm:inline-block truncate max-w-[100px]">
+                                {user.email?.split('@')[0]}
                             </span>
                             <Button onClick={handleSignOut} variant="ghost" size="sm">
                                 Sign Out

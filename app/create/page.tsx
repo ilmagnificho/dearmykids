@@ -59,11 +59,32 @@ export default function CreatePage() {
     const [selectedShot, setSelectedShot] = useState('portrait')
     const [uploading, setUploading] = useState(false)
     const [loadingMessage, setLoadingMessage] = useState('') // Dynamic loading steps
-    const [isPremiumUser] = useState(false) // TODO: Check from auth/subscription
+    const [loadingMessage, setLoadingMessage] = useState('') // Dynamic loading steps
+    const [hasCredits, setHasCredits] = useState(false) // Check if user has credits
+    const [credits, setCredits] = useState(0)
     const [cachedPhoto, setCachedPhoto] = useState<string | null>(null) // Base64 cached photo
     const [useCachedPhoto, setUseCachedPhoto] = useState(false)
     const supabase = createClient()
     const router = useRouter()
+
+    useEffect(() => {
+        const checkCredits = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                const { data: profile } = await supabase
+                    .from('user_profiles')
+                    .select('credits')
+                    .eq('user_id', user.id)
+                    .single()
+
+                if (profile) {
+                    setCredits(profile.credits)
+                    setHasCredits(profile.credits > 0)
+                }
+            }
+        }
+        checkCredits()
+    }, [])
 
     // Loading message rotation
     useEffect(() => {
@@ -180,7 +201,7 @@ export default function CreatePage() {
 
     const canSelectTheme = (themeId: string) => {
         const isFree = THEMES.free.some(t => t.id === themeId)
-        return isFree || isPremiumUser
+        return isFree || hasCredits
     }
 
     return (
@@ -231,8 +252,10 @@ export default function CreatePage() {
                         <div className="flex items-center gap-2 mb-3">
                             <Crown className="w-4 h-4 text-amber-500" />
                             <h3 className="text-sm font-medium text-gray-500">{t.create.premium}</h3>
-                            {!isPremiumUser && (
-                                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{t.create.comingSoon}</span>
+                            {!hasCredits && (
+                                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                                    {credits} Credits Required
+                                </span>
                             )}
                         </div>
                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -290,7 +313,7 @@ export default function CreatePage() {
                         <h3 className="text-sm font-medium text-gray-700 mb-3">{t.create.format}</h3>
                         <div className="grid grid-cols-3 gap-3">
                             {FORMATS.map((format) => {
-                                const canSelect = format.free || isPremiumUser
+                                const canSelect = format.free || hasCredits
                                 return (
                                     <Card
                                         key={format.id}
@@ -325,7 +348,7 @@ export default function CreatePage() {
                         <h3 className="text-sm font-medium text-gray-700 mb-3">{t.create.shotType}</h3>
                         <div className="grid grid-cols-3 gap-3">
                             {SHOT_TYPES.map((shot) => {
-                                const canSelect = shot.free || isPremiumUser
+                                const canSelect = shot.free || hasCredits
                                 return (
                                     <Card
                                         key={shot.id}
