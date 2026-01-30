@@ -36,10 +36,22 @@ export default function PricingPage() {
                 body: JSON.stringify({ packageId })
             })
 
-            const data = await response.json()
+            const responseText = await response.text()
+            console.log('Gift API Response:', response.status, responseText)
+
+            if (!responseText) {
+                throw new Error(`Empty response from server (Status: ${response.status})`)
+            }
+
+            let data
+            try {
+                data = JSON.parse(responseText)
+            } catch (e) {
+                throw new Error(`Invalid JSON response: ${responseText.substring(0, 50)}...`)
+            }
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed')
+                throw new Error(data.error || `Server Error: ${response.status} ${data.message || ''}`)
             }
 
             if (data.success) {
