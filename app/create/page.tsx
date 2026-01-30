@@ -138,19 +138,28 @@ export default function CreatePage() {
 
     const allThemes = [...THEMES.free, ...THEMES.premium]
     const selectedThemeData = allThemes.find(th => th.id === selectedTheme)
+
+    // Translators
     const getThemeName = (id: string) => t.themes[id as keyof typeof t.themes] || id
     const getFormatName = (id: string) => t.formats[id as keyof typeof t.formats] || id
     const getShotName = (id: string) => t.shotTypes[id as keyof typeof t.shotTypes] || id
+
+    // Clear cache helper
+    const handleClearCache = () => {
+        if (window.confirm('This will clear your local session and refresh the page. Continue?')) {
+            localStorage.clear()
+            sessionStorage.clear()
+            window.location.reload()
+        }
+    }
 
     // Generate with provided base64 image
     const generateWithImage = async (imageBase64: string) => {
         if (!selectedTheme) return
         setUploading(true)
+        const startTime = Date.now()
 
         try {
-            const { data: { user } } = await supabase.auth.getUser()
-            const isGuest = !user
-
             // Validate Requirements
             if (!selectedGender || !selectedAge) {
                 alert('Please select gender and age.')
@@ -158,9 +167,28 @@ export default function CreatePage() {
                 return
             }
 
+            // 0. Robust Auth Check with Timeout (Fix for infinite loading)
+            let user = null
+            try {
+                const authPromise = supabase.auth.getUser()
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Auth check timed out')), 10000)
+                )
+                const result = await Promise.race([authPromise, timeoutPromise]) as any
+                user = result.data?.user
+                console.log('[Create] Auth confirmed:', user?.id || 'Guest')
+            } catch (err) {
+                console.warn('[Create] Auth check failed or timed out, proceeding as Guest if allow.', err)
+                // We don't block here, we let the API decide or treat as guest locally if needed.
+                // But specifically for this app, no-user is fine (Guest mode).
+            }
+
+            const isGuest = !user
+
             // Save to session storage for reuse
             sessionStorage.setItem(CACHED_PHOTO_KEY, imageBase64)
             setCachedPhoto(imageBase64)
+
 
             // 1. Check Payload Size (Vercel Limit ~4.5MB)
             // Base64 is ~33% larger than binary. Target < 4MB binary (~5.3MB Base64) to be safe.
@@ -523,6 +551,16 @@ export default function CreatePage() {
                                 >
                                     {locale === 'ko' ? '☕ 삼촌 개발자에게 커피 한잔 쏘고 더 빠른 서버 응원하기' : '☕ Support the uncle dev with a coffee!'}
                                 </a>
+                            </div>
+
+                            {/* Clear Cache Option for Hanging */}
+                            <div className="mt-8">
+                                <button
+                                    onClick={handleClearCache}
+                                    className="text-xs text-gray-400 hover:text-gray-600 underline"
+                                >
+                                    {locale === 'ko' ? '로딩이 너무 오래 걸리나요? (캐시 초기화)' : 'Taking too long? (Clear Cache)'}
+                                </button>
                             </div>
                         </div>
                     ) : (
