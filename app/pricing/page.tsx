@@ -138,17 +138,12 @@ export default function PricingPage() {
                                     </span>
                                 </div>
 
-                                {/* Price (Strikethrough for Event) */}
-                                <div className="text-2xl font-bold flex items-center justify-center gap-2">
-                                    <span className="line-through text-gray-400 text-lg">
-                                        {formatPrice(price, locale)}
-                                    </span>
-                                    <span className="text-red-500">
-                                        {locale === 'ko' ? '0원' : 'Free'}
-                                    </span>
+                                {/* Price */}
+                                <div className="text-2xl font-bold">
+                                    {formatPrice(price, locale)}
                                 </div>
-                                <div className="text-sm text-amber-600 font-bold">
-                                    {locale === 'ko' ? '🎁 런칭 기념 무료!' : '🎁 Free Launch Gift!'}
+                                <div className="text-sm text-gray-400">
+                                    {locale === 'ko' ? `장당 ₩${perImage.toLocaleString()}` : `$${(perImage / 100).toFixed(2)} per image`}
                                 </div>
                             </div>
 
@@ -184,7 +179,7 @@ export default function PricingPage() {
                                 {loading === pkg.id ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
-                                    locale === 'ko' ? '무료로 받기' : 'Get for Free'
+                                    locale === 'ko' ? '구매하기' : 'Buy Now'
                                 )}
                             </Button>
                         </Card>
