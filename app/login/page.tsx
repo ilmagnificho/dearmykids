@@ -2,12 +2,17 @@
 
 import { createClient } from '@/utils/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Check, Chrome } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Check, Chrome, Mail, Lock } from 'lucide-react'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
     const supabase = createClient()
+    const router = useRouter()
     const [loading, setLoading] = useState(false)
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
 
     const handleLogin = async (provider: 'google' | 'kakao') => {
         setLoading(true)
@@ -22,6 +27,44 @@ export default function LoginPage() {
 
         if (error) {
             console.error(error)
+            alert('Login failed: ' + error.message)
+            setLoading(false)
+        }
+    }
+
+    const handleEmailSignIn = async () => {
+        setLoading(true)
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        })
+
+        if (error) {
+            alert('Error: ' + error.message)
+            setLoading(false)
+        } else {
+            router.refresh()
+            // Router refresh handles state update, middleware or layout will redirect if needed, 
+            // but explicit push is safer for UX
+            router.push('/')
+        }
+    }
+
+    const handleEmailSignUp = async () => {
+        setLoading(true)
+        const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                emailRedirectTo: `${window.location.origin}/auth/callback`,
+            },
+        })
+
+        if (error) {
+            alert('Signup Error: ' + error.message)
+            setLoading(false)
+        } else {
+            alert('Check your email for the confirmation link!')
             setLoading(false)
         }
     }
@@ -80,6 +123,60 @@ export default function LoginPage() {
                             Continue with Kakao
                         </Button>
                     </div>
+
+                    <div className="relative my-6">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-stone-50 px-2 text-gray-500">Or use email</span>
+                        </div>
+                    </div>
+
+                    <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleEmailSignIn(); }}>
+                        <div className="space-y-2">
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                                <Input
+                                    type="email"
+                                    placeholder="name@example.com"
+                                    className="pl-10 h-11 bg-white"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                                <Input
+                                    type="password"
+                                    placeholder="Password"
+                                    className="pl-10 h-11 bg-white"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <Button
+                                type="submit"
+                                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white h-11"
+                                disabled={loading}
+                            >
+                                Sign In
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="flex-1 border-slate-300 hover:bg-slate-50 h-11"
+                                onClick={handleEmailSignUp}
+                                disabled={loading}
+                            >
+                                Sign Up
+                            </Button>
+                        </div>
+                    </form>
 
                     <div className="relative">
                         <div className="absolute inset-0 flex items-center">
