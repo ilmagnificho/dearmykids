@@ -5,11 +5,17 @@ import { FREE_TIER } from '@/lib/credits'
 export const runtime = 'edge' // Bypass 10s Serverless Timeout (Edge allows ~30s on Hobby)
 
 export async function POST(request: Request) {
+    console.log('[API] /api/generate hit')
     try {
         const supabase = await createClient()
+        console.log('[API] Supabase client created')
+
         const { data: { user } } = await supabase.auth.getUser()
+        console.log('[API] Auth check complete. User:', user?.id || 'Guest')
 
         const json = await request.json()
+        console.log('[API] JSON parsed')
+
         const { storage_path, theme, is_guest, image_base64, format = 'square', shot_type = 'portrait' } = json
 
         if (!theme) {
@@ -178,7 +184,7 @@ Do not cartoonize unless specified. Make it look like a real professional photo.
         // Use Gemini 2.5 Flash Image with the source image included
         const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`
 
-        console.log('Calling Gemini 2.5 Flash Image for Image Editing...')
+        console.log('[API] Calling Gemini 2.5 Flash Image...')
 
         const response = await fetch(apiEndpoint, {
             method: 'POST',
