@@ -142,371 +142,390 @@ export default function CreatePage() {
             sessionStorage.setItem(CACHED_PHOTO_KEY, imageBase64)
             setCachedPhoto(imageBase64)
 
-            // Call Generate API with options
-            const response = await fetch('/api/generate', {
-                method: 'POST',
-                body: JSON.stringify({
-                    storage_path: '',
-                    image_base64: imageBase64,
-                    theme: selectedTheme,
-                    format: selectedFormat,
-                    shot_type: selectedShot,
-                    is_guest: isGuest
+            // 1. Check Payload Size (Vercel Limit ~4.5MB)
+            // Base64 is ~33% larger than binary. Target < 4MB binary (~5.3MB Base64) to be safe.
+            // Actually Vercel body limit is 4.5MB total. So Base64 string length should be < 4.5MB (~3.3MB image).
+            if (imageBase64.length > 4 * 1024 * 1024) {
+                alert('Image is too large. Please upload an image smaller than 3MB.')
+                setUploading(false)
+                return
+            }
+
+            // 2. Call Generate API with Timeout
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 55000) // 55s timeout (Vercel Hobby 10s, Pro 60s)
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    signal: controller.signal,
+                    body: JSON.stringify({
+                        storage_path: '',
+                        image_base64: imageBase64,
+                        theme: selectedTheme,
+                        format: selectedFormat,
+                        shot_type: selectedShot,
+                        is_guest: isGuest
+                    })
                 })
-            })
+                clearTimeout(timeoutId)
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}))
-                throw new Error(errorData.error || `Generation failed: ${response.status}`)
-            }
-
-            const result = await response.json()
-
-            if (result.imageUrl) {
-                const resultData = {
-                    id: isGuest ? 'guest-' + Date.now() : result.imageId,
-                    theme: selectedTheme,
-                    image_url: result.imageUrl,
-                    created_at: new Date().toISOString()
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}))
+                    throw new Error(errorData.error || `Generation failed: ${response.status}`)
                 }
-                localStorage.setItem('guest_latest_result', JSON.stringify(resultData))
-                router.push(`/result?guest=${isGuest}`)
-            } else {
-                throw new Error('No image returned from generation')
-            }
 
-        } catch (error: any) {
-            console.error(error)
-            alert('Error: ' + error.message)
-        } finally {
-            setUploading(false)
+                const result = await response.json()
+                // ... existing success logic ...
+
+
+                const result = await response.json()
+
+                if (result.imageUrl) {
+                    const resultData = {
+                        id: isGuest ? 'guest-' + Date.now() : result.imageId,
+                        theme: selectedTheme,
+                        image_url: result.imageUrl,
+                        created_at: new Date().toISOString()
+                    }
+                    localStorage.setItem('guest_latest_result', JSON.stringify(resultData))
+                    router.push(`/result?guest=${isGuest}`)
+                } else {
+                    throw new Error('No image returned from generation')
+                }
+
+            } catch (error: any) {
+                console.error(error)
+                alert('Error: ' + error.message)
+            } finally {
+                setUploading(false)
+            }
         }
-    }
 
     const handleImageSelected = async (blob: Blob) => {
-        if (!selectedTheme) return
+            if (!selectedTheme) return
 
-        // Convert Blob to Base64
-        const reader = new FileReader()
-        const base64Promise = new Promise<string>((resolve) => {
-            reader.onloadend = () => {
-                const base64 = reader.result as string
-                resolve(base64.split(',')[1])
-            }
-            reader.readAsDataURL(blob)
-        })
-        const imageBase64 = await base64Promise
+            // Convert Blob to Base64
+            const reader = new FileReader()
+            const base64Promise = new Promise<string>((resolve) => {
+                reader.onloadend = () => {
+                    const base64 = reader.result as string
+                    resolve(base64.split(',')[1])
+                }
+                reader.readAsDataURL(blob)
+            })
+            const imageBase64 = await base64Promise
 
-        await generateWithImage(imageBase64)
-    }
+            await generateWithImage(imageBase64)
+        }
 
-    const handleUseCachedPhoto = async () => {
-        if (!cachedPhoto || !selectedTheme) return
-        await generateWithImage(cachedPhoto)
-    }
+        const handleUseCachedPhoto = async () => {
+            if (!cachedPhoto || !selectedTheme) return
+            await generateWithImage(cachedPhoto)
+        }
 
-    const canSelectTheme = (themeId: string) => {
-        const isFree = THEMES.free.some(t => t.id === themeId)
-        return isFree || hasCredits
-    }
+        const canSelectTheme = (themeId: string) => {
+            const isFree = THEMES.free.some(t => t.id === themeId)
+            return isFree || hasCredits
+        }
 
-    return (
-        <div className="container mx-auto max-w-4xl px-4 py-8">
-            {/* Progress indicator */}
-            <div className="flex items-center justify-center gap-2 mb-8">
-                {[1, 2, 3].map((s) => (
-                    <div
-                        key={s}
-                        className={`h-2 rounded-full transition-all ${s === step ? 'w-8 bg-amber-500' : s < step ? 'w-8 bg-amber-300' : 'w-8 bg-gray-200'
-                            }`}
-                    />
-                ))}
-            </div>
+        return (
+            <div className="container mx-auto max-w-4xl px-4 py-8">
+                {/* Progress indicator */}
+                <div className="flex items-center justify-center gap-2 mb-8">
+                    {[1, 2, 3].map((s) => (
+                        <div
+                            key={s}
+                            className={`h-2 rounded-full transition-all ${s === step ? 'w-8 bg-amber-500' : s < step ? 'w-8 bg-amber-300' : 'w-8 bg-gray-200'
+                                }`}
+                        />
+                    ))}
+                </div>
 
-            {/* Step 1: Select Theme */}
-            {step === 1 && (
-                <div className="space-y-8">
-                    <div className="text-center">
-                        <h1 className="text-2xl font-bold mb-2">{t.create.chooseCareer}</h1>
-                        <p className="text-gray-500">{t.create.whatToBe}</p>
-                    </div>
-
-                    {/* Free Themes */}
-                    <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-3">{t.create.free}</h3>
-                        <div className="grid grid-cols-3 gap-3">
-                            {THEMES.free.map((theme) => (
-                                <Card
-                                    key={theme.id}
-                                    className={`p-4 cursor-pointer transition-all hover:shadow-md border-2 ${selectedTheme === theme.id
-                                        ? 'border-amber-500 bg-amber-50'
-                                        : 'border-transparent hover:border-gray-200'
-                                        }`}
-                                    onClick={() => setSelectedTheme(theme.id)}
-                                >
-                                    <div className="text-center">
-                                        <span className="text-3xl mb-2 block">{theme.emoji}</span>
-                                        <p className="font-medium text-sm">{getThemeName(theme.id)}</p>
-                                    </div>
-                                </Card>
-                            ))}
+                {/* Step 1: Select Theme */}
+                {step === 1 && (
+                    <div className="space-y-8">
+                        <div className="text-center">
+                            <h1 className="text-2xl font-bold mb-2">{t.create.chooseCareer}</h1>
+                            <p className="text-gray-500">{t.create.whatToBe}</p>
                         </div>
-                    </div>
 
-                    {/* Premium Themes */}
-                    <div>
-                        <div className="flex items-center gap-2 mb-3">
-                            <Crown className="w-4 h-4 text-amber-500" />
-                            <h3 className="text-sm font-medium text-gray-500">{t.create.premium}</h3>
-                            {!hasCredits && (
-                                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                                    {credits} Credits Required
-                                </span>
-                            )}
-                        </div>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                            {THEMES.premium.map((theme) => {
-                                const canSelect = canSelectTheme(theme.id)
-                                return (
+                        {/* Free Themes */}
+                        <div>
+                            <h3 className="text-sm font-medium text-gray-500 mb-3">{t.create.free}</h3>
+                            <div className="grid grid-cols-3 gap-3">
+                                {THEMES.free.map((theme) => (
                                     <Card
                                         key={theme.id}
-                                        className={`p-4 transition-all border-2 relative ${canSelect
-                                            ? selectedTheme === theme.id
-                                                ? 'border-amber-500 bg-amber-50 cursor-pointer'
-                                                : 'border-transparent hover:border-gray-200 cursor-pointer hover:shadow-md'
-                                            : 'border-transparent bg-gray-50 opacity-60 cursor-not-allowed'
+                                        className={`p-4 cursor-pointer transition-all hover:shadow-md border-2 ${selectedTheme === theme.id
+                                            ? 'border-amber-500 bg-amber-50'
+                                            : 'border-transparent hover:border-gray-200'
                                             }`}
-                                        onClick={() => canSelect && setSelectedTheme(theme.id)}
+                                        onClick={() => setSelectedTheme(theme.id)}
                                     >
-                                        {!canSelect && (
-                                            <div className="absolute top-2 right-2">
-                                                <Lock className="w-3 h-3 text-gray-400" />
-                                            </div>
-                                        )}
                                         <div className="text-center">
-                                            <span className="text-2xl sm:text-3xl mb-2 block">{theme.emoji}</span>
-                                            <p className="font-medium text-xs sm:text-sm">{getThemeName(theme.id)}</p>
+                                            <span className="text-3xl mb-2 block">{theme.emoji}</span>
+                                            <p className="font-medium text-sm">{getThemeName(theme.id)}</p>
                                         </div>
                                     </Card>
-                                )
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="flex justify-center pt-4">
-                        <Button
-                            size="lg"
-                            disabled={!selectedTheme}
-                            onClick={() => setStep(2)}
-                            className="px-12 bg-amber-600 hover:bg-amber-700"
-                        >
-                            {t.create.continue}
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* Step 2: Select Options */}
-            {step === 2 && (
-                <div className="space-y-8">
-                    <div className="text-center">
-                        <h1 className="text-2xl font-bold mb-2">{t.create.customize}</h1>
-                        <p className="text-gray-500">{selectedThemeData?.emoji} {selectedTheme && getThemeName(selectedTheme)}</p>
-                    </div>
-
-                    {/* Format Selection */}
-                    <div>
-                        <h3 className="text-sm font-medium text-gray-700 mb-3">{t.create.format}</h3>
-                        <div className="grid grid-cols-3 gap-3">
-                            {FORMATS.map((format) => {
-                                const canSelect = format.free || hasCredits
-                                return (
-                                    <Card
-                                        key={format.id}
-                                        className={`p-4 transition-all border-2 relative ${canSelect
-                                            ? selectedFormat === format.id
-                                                ? 'border-amber-500 bg-amber-50 cursor-pointer'
-                                                : 'border-transparent hover:border-gray-200 cursor-pointer'
-                                            : 'border-transparent bg-gray-50 opacity-60 cursor-not-allowed'
-                                            }`}
-                                        onClick={() => canSelect && setSelectedFormat(format.id)}
-                                    >
-                                        {!canSelect && (
-                                            <div className="absolute top-2 right-2">
-                                                <Lock className="w-3 h-3 text-gray-400" />
-                                            </div>
-                                        )}
-                                        <div className="text-center">
-                                            <div className={`mx-auto mb-2 bg-gray-200 ${format.id === 'square' ? 'w-10 h-10' :
-                                                format.id === 'portrait' ? 'w-8 h-10' : 'w-12 h-7'
-                                                } rounded`} />
-                                            <p className="font-medium text-sm">{getFormatName(format.id)}</p>
-                                            <p className="text-xs text-gray-400">{format.ratio}</p>
-                                        </div>
-                                    </Card>
-                                )
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Shot Type Selection */}
-                    <div>
-                        <h3 className="text-sm font-medium text-gray-700 mb-3">{t.create.shotType}</h3>
-                        <div className="grid grid-cols-3 gap-3">
-                            {SHOT_TYPES.map((shot) => {
-                                const canSelect = shot.free || hasCredits
-                                return (
-                                    <Card
-                                        key={shot.id}
-                                        className={`p-4 transition-all border-2 relative ${canSelect
-                                            ? selectedShot === shot.id
-                                                ? 'border-amber-500 bg-amber-50 cursor-pointer'
-                                                : 'border-transparent hover:border-gray-200 cursor-pointer'
-                                            : 'border-transparent bg-gray-50 opacity-60 cursor-not-allowed'
-                                            }`}
-                                        onClick={() => canSelect && setSelectedShot(shot.id)}
-                                    >
-                                        {!canSelect && (
-                                            <div className="absolute top-2 right-2">
-                                                <Lock className="w-3 h-3 text-gray-400" />
-                                            </div>
-                                        )}
-                                        <div className="text-center">
-                                            <p className="font-medium text-sm">{getShotName(shot.id)}</p>
-                                        </div>
-                                    </Card>
-                                )
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="flex justify-center gap-4 pt-4">
-                        <Button variant="ghost" onClick={() => setStep(1)}>
-                            {t.create.back}
-                        </Button>
-                        <Button
-                            size="lg"
-                            onClick={() => setStep(3)}
-                            className="px-12 bg-amber-600 hover:bg-amber-700"
-                        >
-                            {t.create.continue}
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* Step 3: Upload Photo */}
-            {step === 3 && (
-                <div className="space-y-6 max-w-xl mx-auto">
-                    <div className="text-center">
-                        <h1 className="text-2xl font-bold mb-2">{t.create.uploadPhoto}</h1>
-                        <p className="text-gray-500">
-                            {selectedThemeData?.emoji} {selectedTheme && getThemeName(selectedTheme)} • {getFormatName(selectedFormat)} • {getShotName(selectedShot)}
-                        </p>
-                    </div>
-
-                    {uploading ? (
-                        <div className="text-center py-16">
-                            <div className="relative w-20 h-20 mx-auto mb-6">
-                                <div className="absolute inset-0 border-4 border-amber-200 rounded-full opacity-25 animate-ping"></div>
-                                <div className="relative bg-white p-4 rounded-full shadow-lg border-2 border-amber-100">
-                                    <Loader2 className="w-10 h-10 animate-spin text-amber-500" />
-                                </div>
-                            </div>
-                            <h2 className="text-xl font-bold mb-2 animate-pulse text-amber-900">
-                                {loadingMessage || t.create.creating}
-                            </h2>
-                            <p className="text-gray-500 max-w-xs mx-auto mb-8">
-                                {t.create.creatingTime || 'This takes about 10-20 seconds'}
-                            </p>
-
-                            {/* Loading State Donation Nudge */}
-                            <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 max-w-sm mx-auto animate-fade-in">
-                                <p className="text-sm text-amber-800 mb-2 font-medium">
-                                    {locale === 'ko' ? '기다리는 동안...' : 'While you wait...'}
-                                </p>
-                                <a
-                                    href="https://buymeacoffee.com/dearmykids"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-xs text-gray-500 hover:text-amber-600 underline decoration-amber-300 decoration-2 underline-offset-2 transition-colors"
-                                >
-                                    {locale === 'ko' ? '☕ 개발자에게 커피 한잔 쏘고 더 빠른 서버 응원하기' : '☕ Support the developer with a coffee to keep this free!'}
-                                </a>
+                                ))}
                             </div>
                         </div>
-                    ) : (
-                        <>
-                            {/* Option to use cached photo */}
-                            {cachedPhoto && (
-                                <div className="space-y-4">
-                                    <Card
-                                        className="p-4 border-2 border-amber-300 bg-amber-50 cursor-pointer hover:shadow-md transition-shadow"
-                                        onClick={handleUseCachedPhoto}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img
-                                                    src={`data:image/jpeg;base64,${cachedPhoto}`}
-                                                    alt="Cached photo"
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <ImageIcon className="w-4 h-4 text-amber-600" />
-                                                    <p className="font-semibold text-amber-900">{t.create.usePreviousPhoto}</p>
+
+                        {/* Premium Themes */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-3">
+                                <Crown className="w-4 h-4 text-amber-500" />
+                                <h3 className="text-sm font-medium text-gray-500">{t.create.premium}</h3>
+                                {!hasCredits && (
+                                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                                        {credits} Credits Required
+                                    </span>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                {THEMES.premium.map((theme) => {
+                                    const canSelect = canSelectTheme(theme.id)
+                                    return (
+                                        <Card
+                                            key={theme.id}
+                                            className={`p-4 transition-all border-2 relative ${canSelect
+                                                ? selectedTheme === theme.id
+                                                    ? 'border-amber-500 bg-amber-50 cursor-pointer'
+                                                    : 'border-transparent hover:border-gray-200 cursor-pointer hover:shadow-md'
+                                                : 'border-transparent bg-gray-50 opacity-60 cursor-not-allowed'
+                                                }`}
+                                            onClick={() => canSelect && setSelectedTheme(theme.id)}
+                                        >
+                                            {!canSelect && (
+                                                <div className="absolute top-2 right-2">
+                                                    <Lock className="w-3 h-3 text-gray-400" />
                                                 </div>
-                                                <p className="text-sm text-amber-700">{t.create.usePreviousPhotoDesc}</p>
+                                            )}
+                                            <div className="text-center">
+                                                <span className="text-2xl sm:text-3xl mb-2 block">{theme.emoji}</span>
+                                                <p className="font-medium text-xs sm:text-sm">{getThemeName(theme.id)}</p>
                                             </div>
-                                        </div>
-                                    </Card>
+                                        </Card>
+                                    )
+                                })}
+                            </div>
+                        </div>
 
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex-1 h-px bg-gray-200" />
-                                        <span className="text-sm text-gray-400">{t.create.or}</span>
-                                        <div className="flex-1 h-px bg-gray-200" />
-                                    </div>
+                        <div className="flex justify-center pt-4">
+                            <Button
+                                size="lg"
+                                disabled={!selectedTheme}
+                                onClick={() => setStep(2)}
+                                className="px-12 bg-amber-600 hover:bg-amber-700"
+                            >
+                                {t.create.continue}
+                            </Button>
+                        </div>
+                    </div>
+                )}
 
-                                    <div className="text-center text-sm text-gray-500 mb-2">
-                                        <Upload className="w-4 h-4 inline mr-1" />
-                                        {t.create.uploadNewPhoto}
+                {/* Step 2: Select Options */}
+                {step === 2 && (
+                    <div className="space-y-8">
+                        <div className="text-center">
+                            <h1 className="text-2xl font-bold mb-2">{t.create.customize}</h1>
+                            <p className="text-gray-500">{selectedThemeData?.emoji} {selectedTheme && getThemeName(selectedTheme)}</p>
+                        </div>
+
+                        {/* Format Selection */}
+                        <div>
+                            <h3 className="text-sm font-medium text-gray-700 mb-3">{t.create.format}</h3>
+                            <div className="grid grid-cols-3 gap-3">
+                                {FORMATS.map((format) => {
+                                    const canSelect = format.free || hasCredits
+                                    return (
+                                        <Card
+                                            key={format.id}
+                                            className={`p-4 transition-all border-2 relative ${canSelect
+                                                ? selectedFormat === format.id
+                                                    ? 'border-amber-500 bg-amber-50 cursor-pointer'
+                                                    : 'border-transparent hover:border-gray-200 cursor-pointer'
+                                                : 'border-transparent bg-gray-50 opacity-60 cursor-not-allowed'
+                                                }`}
+                                            onClick={() => canSelect && setSelectedFormat(format.id)}
+                                        >
+                                            {!canSelect && (
+                                                <div className="absolute top-2 right-2">
+                                                    <Lock className="w-3 h-3 text-gray-400" />
+                                                </div>
+                                            )}
+                                            <div className="text-center">
+                                                <div className={`mx-auto mb-2 bg-gray-200 ${format.id === 'square' ? 'w-10 h-10' :
+                                                    format.id === 'portrait' ? 'w-8 h-10' : 'w-12 h-7'
+                                                    } rounded`} />
+                                                <p className="font-medium text-sm">{getFormatName(format.id)}</p>
+                                                <p className="text-xs text-gray-400">{format.ratio}</p>
+                                            </div>
+                                        </Card>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Shot Type Selection */}
+                        <div>
+                            <h3 className="text-sm font-medium text-gray-700 mb-3">{t.create.shotType}</h3>
+                            <div className="grid grid-cols-3 gap-3">
+                                {SHOT_TYPES.map((shot) => {
+                                    const canSelect = shot.free || hasCredits
+                                    return (
+                                        <Card
+                                            key={shot.id}
+                                            className={`p-4 transition-all border-2 relative ${canSelect
+                                                ? selectedShot === shot.id
+                                                    ? 'border-amber-500 bg-amber-50 cursor-pointer'
+                                                    : 'border-transparent hover:border-gray-200 cursor-pointer'
+                                                : 'border-transparent bg-gray-50 opacity-60 cursor-not-allowed'
+                                                }`}
+                                            onClick={() => canSelect && setSelectedShot(shot.id)}
+                                        >
+                                            {!canSelect && (
+                                                <div className="absolute top-2 right-2">
+                                                    <Lock className="w-3 h-3 text-gray-400" />
+                                                </div>
+                                            )}
+                                            <div className="text-center">
+                                                <p className="font-medium text-sm">{getShotName(shot.id)}</p>
+                                            </div>
+                                        </Card>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="flex justify-center gap-4 pt-4">
+                            <Button variant="ghost" onClick={() => setStep(1)}>
+                                {t.create.back}
+                            </Button>
+                            <Button
+                                size="lg"
+                                onClick={() => setStep(3)}
+                                className="px-12 bg-amber-600 hover:bg-amber-700"
+                            >
+                                {t.create.continue}
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Step 3: Upload Photo */}
+                {step === 3 && (
+                    <div className="space-y-6 max-w-xl mx-auto">
+                        <div className="text-center">
+                            <h1 className="text-2xl font-bold mb-2">{t.create.uploadPhoto}</h1>
+                            <p className="text-gray-500">
+                                {selectedThemeData?.emoji} {selectedTheme && getThemeName(selectedTheme)} • {getFormatName(selectedFormat)} • {getShotName(selectedShot)}
+                            </p>
+                        </div>
+
+                        {uploading ? (
+                            <div className="text-center py-16">
+                                <div className="relative w-20 h-20 mx-auto mb-6">
+                                    <div className="absolute inset-0 border-4 border-amber-200 rounded-full opacity-25 animate-ping"></div>
+                                    <div className="relative bg-white p-4 rounded-full shadow-lg border-2 border-amber-100">
+                                        <Loader2 className="w-10 h-10 animate-spin text-amber-500" />
                                     </div>
                                 </div>
-                            )}
-
-                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
-                                <p className="font-medium text-amber-800 mb-2">{t.create.tips}</p>
-                                <ul className="text-amber-700 space-y-1 text-sm">
-                                    <li>• {t.create.tip1}</li>
-                                    <li>• {t.create.tip2}</li>
-                                    <li>• {t.create.tip3}</li>
-                                </ul>
-                            </div>
-
-                            <ImageUpload onImageSelected={handleImageSelected} />
-
-                            {/* Privacy Assurance */}
-                            <div className="text-center mt-4">
-                                <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
-                                    <Lock className="w-3 h-3" />
-                                    {t.create.privacyNote || 'Photos are deleted after 24h. No AI training.'}
-                                    <a href="/about" target="_blank" className="underline hover:text-gray-600 ml-1">
-                                        {t.create.learnMore || 'Learn more'}
-                                    </a>
+                                <h2 className="text-xl font-bold mb-2 animate-pulse text-amber-900">
+                                    {loadingMessage || t.create.creating}
+                                </h2>
+                                <p className="text-gray-500 max-w-xs mx-auto mb-8">
+                                    {t.create.creatingTime || 'This takes about 10-20 seconds'}
                                 </p>
-                            </div>
-                        </>
-                    )}
 
-                    <div className="flex justify-center pt-4">
-                        <Button variant="ghost" onClick={() => setStep(2)} disabled={uploading}>
-                            {t.create.back}
-                        </Button>
+                                {/* Loading State Donation Nudge */}
+                                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 max-w-sm mx-auto animate-fade-in">
+                                    <p className="text-sm text-amber-800 mb-2 font-medium">
+                                        {locale === 'ko' ? '기다리는 동안...' : 'While you wait...'}
+                                    </p>
+                                    <a
+                                        href="https://buymeacoffee.com/dearmykids"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-xs text-gray-500 hover:text-amber-600 underline decoration-amber-300 decoration-2 underline-offset-2 transition-colors"
+                                    >
+                                        {locale === 'ko' ? '☕ 개발자에게 커피 한잔 쏘고 더 빠른 서버 응원하기' : '☕ Support the developer with a coffee to keep this free!'}
+                                    </a>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Option to use cached photo */}
+                                {cachedPhoto && (
+                                    <div className="space-y-4">
+                                        <Card
+                                            className="p-4 border-2 border-amber-300 bg-amber-50 cursor-pointer hover:shadow-md transition-shadow"
+                                            onClick={handleUseCachedPhoto}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img
+                                                        src={`data:image/jpeg;base64,${cachedPhoto}`}
+                                                        alt="Cached photo"
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <ImageIcon className="w-4 h-4 text-amber-600" />
+                                                        <p className="font-semibold text-amber-900">{t.create.usePreviousPhoto}</p>
+                                                    </div>
+                                                    <p className="text-sm text-amber-700">{t.create.usePreviousPhotoDesc}</p>
+                                                </div>
+                                            </div>
+                                        </Card>
+
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex-1 h-px bg-gray-200" />
+                                            <span className="text-sm text-gray-400">{t.create.or}</span>
+                                            <div className="flex-1 h-px bg-gray-200" />
+                                        </div>
+
+                                        <div className="text-center text-sm text-gray-500 mb-2">
+                                            <Upload className="w-4 h-4 inline mr-1" />
+                                            {t.create.uploadNewPhoto}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
+                                    <p className="font-medium text-amber-800 mb-2">{t.create.tips}</p>
+                                    <ul className="text-amber-700 space-y-1 text-sm">
+                                        <li>• {t.create.tip1}</li>
+                                        <li>• {t.create.tip2}</li>
+                                        <li>• {t.create.tip3}</li>
+                                    </ul>
+                                </div>
+
+                                <ImageUpload onImageSelected={handleImageSelected} />
+
+                                {/* Privacy Assurance */}
+                                <div className="text-center mt-4">
+                                    <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+                                        <Lock className="w-3 h-3" />
+                                        {t.create.privacyNote || 'Photos are deleted after 24h. No AI training.'}
+                                        <a href="/about" target="_blank" className="underline hover:text-gray-600 ml-1">
+                                            {t.create.learnMore || 'Learn more'}
+                                        </a>
+                                    </p>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="flex justify-center pt-4">
+                            <Button variant="ghost" onClick={() => setStep(2)} disabled={uploading}>
+                                {t.create.back}
+                            </Button>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
-    )
-}
+                )}
+            </div>
+        )
+    }
