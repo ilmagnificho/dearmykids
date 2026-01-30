@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { FREE_TIER } from '@/lib/credits'
 
-export const runtime = 'edge' // Bypass 10s Serverless Timeout (Edge allows ~30s on Hobby)
+
+// export const runtime = 'edge' // Bypass 10s Serverless Timeout (Edge allows ~30s on Hobby)
+// Switching to Node.js (default) to debug infinite loading issues.
+// Node.js on Vercel Hobby has 10s timeout, Pro has 60s. 
+// If this times out with 504, we know it's timeout. 
+// If it works, it was Edge runtime incompatibility.
 
 export async function POST(request: Request) {
     console.log('[API] /api/generate hit')
@@ -17,8 +22,10 @@ export async function POST(request: Request) {
         console.log('[API] JSON parsed')
 
         const { storage_path, theme, is_guest, image_base64, format = 'square', shot_type = 'portrait', gender, age } = json
+        console.log('[API] Request params:', { theme, is_guest, format, shot_type, gender, age, hasImage: !!image_base64 })
 
         if (!theme || !gender || !age) {
+            console.error('[API] Missing required fields')
             return NextResponse.json({ error: 'Missing required fields (theme, gender, age)' }, { status: 400 })
         }
 
@@ -227,13 +234,14 @@ Do not cartoonize unless specified. Make it look like a real professional photo.
             const needsCredits = !canUseFree
 
             if (needsCredits && credits <= 0) {
+                console.warn('[API] Insufficient credits for user:', user!.id)
                 return NextResponse.json({
                     error: 'No credits remaining',
                     needsCredits: true,
                     message: 'Please purchase credits to continue'
                 }, { status: 402 })
             }
-
+            console.log('[API] Credits sufficient. Proceeding to generation.')
             // DEDUCT CREDITS / UPDATE DAILY LIMIT BEFORE GENERATION
             // This is safer to prevent abuse, but if generation fails we should theoretically refund.
             // For now, we assume high success rate or user can retry if it's a systemic failure.
@@ -276,6 +284,7 @@ Do not cartoonize unless specified. Make it look like a real professional photo.
             console.error('Gemini API Error:', response.status, errorText)
             throw new Error(`Gemini Generation Failed: ${response.status} ${errorText}`)
         }
+        console.log('[API] Gemini API response received successfully')
 
         const data = await response.json()
 
