@@ -7,9 +7,17 @@ interface ComparisonSliderProps {
     beforeImage: string
     afterImage: string
     aspectRatio?: string // e.g. "1/1", "3/4"
+    beforeLabel?: string
+    afterLabel?: string
 }
 
-export function ComparisonSlider({ beforeImage, afterImage, aspectRatio = "1/1" }: ComparisonSliderProps) {
+export function ComparisonSlider({
+    beforeImage,
+    afterImage,
+    aspectRatio = "1/1",
+    beforeLabel = "Original",
+    afterLabel = "AI Portrait"
+}: ComparisonSliderProps) {
     const [sliderPosition, setSliderPosition] = useState(50)
     const [isDragging, setIsDragging] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -97,10 +105,10 @@ export function ComparisonSlider({ beforeImage, afterImage, aspectRatio = "1/1" 
 
             {/* Labels */}
             <div className="absolute top-4 left-4 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
-                Original
+                {beforeLabel}
             </div>
             <div className="absolute top-4 right-4 bg-amber-500/80 text-white text-xs px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
-                AI Portrait
+                {afterLabel}
             </div>
         </div>
     )
