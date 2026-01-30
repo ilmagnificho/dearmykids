@@ -8,6 +8,7 @@ import { Loader2, Lock, Crown, ImageIcon, Upload } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useLocale } from '@/contexts/LocaleContext'
+import { resizeImage } from '@/utils/image'
 
 // Session storage key for cached photo
 const CACHED_PHOTO_KEY = 'dearmykids_cached_photo'
@@ -203,18 +204,15 @@ export default function CreatePage() {
     const handleImageSelected = async (blob: Blob) => {
         if (!selectedTheme) return
 
-        // Convert Blob to Base64
-        const reader = new FileReader()
-        const base64Promise = new Promise<string>((resolve) => {
-            reader.onloadend = () => {
-                const base64 = reader.result as string
-                resolve(base64.split(',')[1])
-            }
-            reader.readAsDataURL(blob)
-        })
-        const imageBase64 = await base64Promise
-
-        await generateWithImage(imageBase64)
+        try {
+            // Resize image to max 1024px to ensure fast upload and avoid Vercel timeouts/limits
+            // This converts to JPEG quality 0.8, drastically reducing size.
+            const imageBase64 = await resizeImage(blob, 1024, 0.8)
+            await generateWithImage(imageBase64)
+        } catch (error) {
+            console.error('Resize failed:', error)
+            alert('Failed to process image. Please try another photo.')
+        }
     }
 
     const handleUseCachedPhoto = async () => {
