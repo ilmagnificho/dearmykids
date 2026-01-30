@@ -1,41 +1,14 @@
-'use client'
+import { useLocale } from '@/contexts/LocaleContext'
 
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { usePathname } from 'next/navigation'
-import { createClient } from '@/utils/supabase/client'
-import { useEffect, useState } from 'react'
-import { User } from '@supabase/supabase-js'
-import { Loader2, Globe } from 'lucide-react'
+// ...
 
 export function Navbar() {
+    const { locale, setLocale } = useLocale() // Use context hook
     const [user, setUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
-    const supabase = createClient()
-    const pathname = usePathname()
+    // ... (rest of state)
 
-    useEffect(() => {
-        const checkUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            setUser(user)
-            setLoading(false)
-        }
-        checkUser()
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null)
-        })
-
-        return () => subscription.unsubscribe()
-    }, [])
-
-    const handleSignOut = async () => {
-        await supabase.auth.signOut()
-        window.location.reload()
-    }
-
-    // Hide Navbar on login page if desired, or keep it simple
-    if (pathname === '/login') return null
+    // ... (useEffect and other logic)
 
     return (
         <nav className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
@@ -46,37 +19,33 @@ export function Navbar() {
 
                 <div className="hidden md:flex items-center gap-6">
                     <Link href="/create" className="text-sm font-medium text-gray-600 hover:text-navy-900">
-                        Create
+                        {locale === 'ko' ? '만들기' : 'Create'}
                     </Link>
                     <Link href="/pricing" className="text-sm font-medium text-gray-600 hover:text-navy-900">
-                        Pricing
+                        {locale === 'ko' ? '가격' : 'Pricing'}
                     </Link>
                     <Link href="/collection" className="text-sm font-medium text-gray-600 hover:text-navy-900">
-                        Collection
+                        {locale === 'ko' ? '컬렉션' : 'Collection'}
                     </Link>
                     <Link href="/invite" className="text-sm font-medium text-gray-600 hover:text-navy-900">
-                        Invite
+                        {locale === 'ko' ? '초대하기' : 'Invite'}
                     </Link>
                     <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-navy-900">
-                        Dashboard
+                        {locale === 'ko' ? '대시보드' : 'Dashboard'}
                     </Link>
                     <Link href="/about" className="text-sm font-medium text-gray-600 hover:text-navy-900">
-                        About
+                        {locale === 'ko' ? '소개' : 'About'}
                     </Link>
                 </div>
 
                 <div className="flex items-center gap-4">
                     {/* Language Switcher */}
                     <button
-                        onClick={() => {
-                            const newLocale = localStorage.getItem('locale') === 'ko' ? 'en' : 'ko'
-                            localStorage.setItem('locale', newLocale)
-                            window.dispatchEvent(new Event('localeChange'))
-                        }}
+                        onClick={() => setLocale(locale === 'ko' ? 'en' : 'ko')}
                         className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-navy-900 border rounded-full hover:bg-gray-50 transition-colors"
                     >
                         <Globe className="w-4 h-4" />
-                        <span>EN/KR</span>
+                        <span>{locale === 'ko' ? 'KR' : 'EN'}</span>
                     </button>
 
                     {loading ? (

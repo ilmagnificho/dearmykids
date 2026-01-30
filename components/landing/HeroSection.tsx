@@ -54,20 +54,8 @@ export default function HeroSection({ locale }: { locale: string }) {
                     </p>
                 </div>
 
-                {/* Visual Hook - Interactive Floating Cards Effect (Placeholder for now) */}
-                <div className="mt-20 relative max-w-5xl mx-auto">
-                    <div className="aspect-[16/9] bg-gradient-to-b from-gray-50 to-white rounded-3xl border border-gray-100 shadow-2xl p-4 md:p-8 flex items-center justify-center overflow-hidden">
-                        <div className="text-gray-400 flex flex-col items-center">
-                            {/* In real implementation, we would put a high-quality collage here */}
-                            <span className="text-sm uppercase tracking-widest mb-2 font-semibold">Live Preview</span>
-                            <div className="flex gap-4 opacity-50">
-                                <div className="w-32 h-44 bg-gray-200 rounded-lg animate-pulse delay-75"></div>
-                                <div className="w-32 h-44 bg-amber-100 rounded-lg animate-pulse delay-150"></div>
-                                <div className="w-32 h-44 bg-gray-200 rounded-lg animate-pulse delay-300"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
+                {/* Visual Hook - Removed per user request to increase trust (no fake previews) */}
             </div>
         </section>
     )
