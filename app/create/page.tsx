@@ -416,9 +416,24 @@ export default function CreatePage() {
                             <h2 className="text-xl font-bold mb-2 animate-pulse text-amber-900">
                                 {loadingMessage || t.create.creating}
                             </h2>
-                            <p className="text-gray-500 max-w-xs mx-auto">
+                            <p className="text-gray-500 max-w-xs mx-auto mb-8">
                                 {t.create.creatingTime || 'This takes about 10-20 seconds'}
                             </p>
+
+                            {/* Loading State Donation Nudge */}
+                            <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 max-w-sm mx-auto animate-fade-in">
+                                <p className="text-sm text-amber-800 mb-2 font-medium">
+                                    {t.create?.waitingTip || (locale === 'ko' ? '기다리는 동안...' : 'While you wait...')}
+                                </p>
+                                <a
+                                    href="https://buymeacoffee.com/dearmykids"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs text-gray-500 hover:text-amber-600 underline decoration-amber-300 decoration-2 underline-offset-2 transition-colors"
+                                >
+                                    {locale === 'ko' ? '☕ 개발자에게 커피 한잔 쏘고 더 빠른 서버 응원하기' : '☕ Support the developer with a coffee to keep this free!'}
+                                </a>
+                            </div>
                         </div>
                     ) : (
                         <>

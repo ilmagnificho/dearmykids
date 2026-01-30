@@ -262,6 +262,43 @@ function ResultContent() {
                 )
             }
 
+            {/* Buy Me a Coffee CTA - Optimized for Conversion */}
+            <div className="mb-12">
+                <div className="bg-gradient-to-r from-yellow-50 to-amber-50 p-6 rounded-2xl border border-amber-200 text-center shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <img src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg" className="w-24 h-24 rotate-12" alt="Coffee" />
+                    </div>
+
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        {locale === 'ko' ? '사진이 마음에 드시나요? 🥰' : 'Love the result? 🥰'}
+                    </h3>
+                    <p className="text-gray-600 mb-6 max-w-lg mx-auto">
+                        {locale === 'ko'
+                            ? '이 서비스는 한 아빠 개발자가 아이들을 위해 만들었습니다. 서버 비용을 후원해주시면 더 많은 무료 테마를 만들 수 있어요!'
+                            : 'This project is run by a dad developer. Running AI servers is expensive! Buy me a coffee to keep this service free and faster.'}
+                    </p>
+
+                    <a
+                        href="https://buymeacoffee.com/dearmykids"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 bg-[#FFDD00] text-black px-6 py-3 rounded-full font-bold shadow-md hover:scale-105 active:scale-95 transition-all text-lg"
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
+                            alt="Buy me a coffee"
+                            className="w-5 h-5"
+                        />
+                        <span>{locale === 'ko' ? '커피 한잔으로 응원하기' : 'Support with a Coffee'}</span>
+                    </a>
+
+                    <p className="text-xs text-gray-400 mt-4">
+                        {locale === 'ko' ? '*100% 안전한 후원 플랫폼입니다.' : '*Secure donation via Buy Me a Coffee.'}
+                    </p>
+                </div>
+            </div>
+
             {/* Next Actions */}
             <div className="border-t pt-8">
                 <h2 className="text-lg font-medium text-center mb-6">{t.result.whatsNext}</h2>
