@@ -70,15 +70,12 @@ export function Navbar() {
                     <Link href="/create" className="text-sm font-medium text-gray-600 hover:text-navy-900">
                         {locale === 'ko' ? '만들기' : 'Create'}
                     </Link>
-                    <Link href="/pricing" className="text-sm font-medium text-gray-600 hover:text-navy-900">
+                    {/* <Link href="/pricing" className="text-sm font-medium text-gray-600 hover:text-navy-900">
                         {locale === 'ko' ? '가격' : 'Pricing'}
-                    </Link>
+                    </Link> */}
                     <Link href="/collection" className="text-sm font-medium text-gray-600 hover:text-navy-900">
                         {locale === 'ko' ? '컬렉션' : 'Collection'}
                     </Link>
-                    {/* <Link href="/invite" className="text-sm font-medium text-gray-600 hover:text-navy-900">
-                        {locale === 'ko' ? '초대하기' : 'Invite'}
-                    </Link> */}
                     <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-navy-900">
                         {locale === 'ko' ? '대시보드' : 'Dashboard'}
                     </Link>
@@ -97,37 +94,20 @@ export function Navbar() {
                         <span>{locale === 'ko' ? 'KR' : 'EN'}</span>
                     </button>
 
-                    {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                    ) : user ? (
-                        <div className="flex items-center gap-4">
-                            {/* Credits Display */}
-                            {credits !== null && (
-                                <div className="hidden sm:flex items-center gap-1 bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold">
-                                    <span>⚡ {credits} {locale === 'ko' ? '크레딧' : 'Credits'}</span>
-                                </div>
-                            )}
-                            <span className="text-sm font-medium hidden sm:inline-block truncate max-w-[100px]">
-                                {user.email?.split('@')[0]}
-                            </span>
-                            <Button onClick={handleSignOut} variant="ghost" size="sm">
-                                Sign Out
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2">
-                            <Link href="/login">
-                                <Button variant="ghost" className="text-gray-600 hover:text-navy-900">
-                                    {locale === 'ko' ? '로그인' : 'Login'}
-                                </Button>
-                            </Link>
-                            <Link href="/login">
-                                <Button variant="default" className="bg-navy-900 hover:bg-navy-800 text-white rounded-full px-6">
-                                    {locale === 'ko' ? '회원가입' : 'Sign Up'}
-                                </Button>
-                            </Link>
-                        </div>
-                    )}
+                    {/* Buy Me a Coffee Button (No Auth) */}
+                    <a
+                        href="https://buymeacoffee.com/"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 bg-[#FFDD00] text-black px-4 py-2 rounded-full text-sm font-bold shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5"
+                    >
+                        <img
+                            src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
+                            alt="Buy me a coffee"
+                            className="w-4 h-4"
+                        />
+                        <span>{locale === 'ko' ? '커피 한잔 쏘기' : 'Buy me a coffee'}</span>
+                    </a>
                 </div>
             </div>
         </nav>
