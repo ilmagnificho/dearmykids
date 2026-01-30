@@ -9,6 +9,7 @@ import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useLocale } from '@/contexts/LocaleContext'
 import { resizeImage } from '@/utils/image'
+import { FREE_TIER } from '@/lib/credits'
 
 // Session storage key for cached photo
 const CACHED_PHOTO_KEY = 'dearmykids_cached_photo'
@@ -67,10 +68,17 @@ export default function CreatePage() {
 
     const [hasCredits, setHasCredits] = useState(false) // Check if user has credits
     const [credits, setCredits] = useState(0)
+    const [dailyUsed, setDailyUsed] = useState(0) // Track daily usage
+
     const [cachedPhoto, setCachedPhoto] = useState<string | null>(null) // Base64 cached photo
     const [useCachedPhoto, setUseCachedPhoto] = useState(false)
     const supabase = createClient()
     const router = useRouter()
+
+    // Scroll to top on step change
+    useEffect(() => {
+        window.scrollTo(0, 0)
+    }, [step])
 
     useEffect(() => {
         const checkCredits = async () => {
@@ -78,7 +86,7 @@ export default function CreatePage() {
             if (user) {
                 const { data: profile, error } = await supabase
                     .from('user_profiles')
-                    .select('credits')
+                    .select('credits, daily_free_used, daily_free_date')
                     .eq('user_id', user.id)
                     .single()
 
@@ -86,11 +94,19 @@ export default function CreatePage() {
                     console.error('Error fetching credits:', error)
                 }
 
-                console.log('User Profile Credits:', profile)
+                console.log('User Profile:', profile)
 
                 if (profile) {
                     setCredits(profile.credits)
                     setHasCredits(profile.credits > 0)
+
+                    // Check daily usage
+                    const today = new Date().toISOString().split('T')[0]
+                    if (profile.daily_free_date === today) {
+                        setDailyUsed(profile.daily_free_used || 0)
+                    } else {
+                        setDailyUsed(0)
+                    }
                 }
             }
         }
@@ -287,6 +303,21 @@ export default function CreatePage() {
                 ))}
             </div>
 
+            {/* Daily Usage Indicator for Free Tier */}
+            <div className="flex justify-center mb-6">
+                <div className={`px-4 py-2 rounded-full text-xs font-medium border flex items-center gap-2 ${dailyUsed >= FREE_TIER.dailyLimit
+                        ? 'bg-red-50 text-red-600 border-red-100'
+                        : 'bg-green-50 text-green-700 border-green-100'
+                    }`}>
+                    <span>🎁 {locale === 'ko' ? '오늘의 무료 체험' : 'Daily Free Generation'}: {dailyUsed} / {FREE_TIER.dailyLimit}</span>
+                    {dailyUsed >= FREE_TIER.dailyLimit && !hasCredits && (
+                        <span className="font-bold underline cursor-pointer" onClick={() => router.push('/shop')}>
+                            {locale === 'ko' ? '(충전하기)' : '(Recharge)'}
+                        </span>
+                    )}
+                </div>
+            </div>
+
             {/* Step 1: Select Theme */}
             {step === 1 && (
                 <div className="space-y-8">
@@ -361,12 +392,23 @@ export default function CreatePage() {
                         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t z-50 flex justify-center md:relative md:border-0 md:bg-transparent md:p-0">
                             <Button
                                 size="lg"
-                                disabled={!selectedTheme}
-                                onClick={() => setStep(2)}
+                                disabled={!selectedTheme || (dailyUsed >= FREE_TIER.dailyLimit && !hasCredits)}
+                                onClick={() => {
+                                    if (dailyUsed >= FREE_TIER.dailyLimit && !hasCredits) {
+                                        alert(locale === 'ko' ? '오늘의 무료 체험 횟수를 모두 사용했습니다. 내일 다시 이용하거나 크레딧을 충전해주세요!' : 'Daily free limit reached. Please recharge credits or wait until tomorrow.')
+                                        return
+                                    }
+                                    setStep(2)
+                                }}
                                 className="w-full md:w-auto px-12 bg-amber-600 hover:bg-amber-700 text-lg shadow-lg"
                             >
                                 {t.create.continue}
                             </Button>
+                            {dailyUsed >= FREE_TIER.dailyLimit && !hasCredits && (
+                                <p className="text-xs text-red-500 text-center mt-2 md:absolute md:top-full md:mt-2 w-full">
+                                    {locale === 'ko' ? '일일 무료 한도 초과 (내일 초기화)' : 'Daily limit reached'}
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>
