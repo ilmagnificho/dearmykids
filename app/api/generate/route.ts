@@ -36,7 +36,9 @@ export async function POST(request: Request) {
 
         // Detailed Prompt Logic (Enhanced for better results)
         // ... (Keep existing prompt logic) ...
-        const themePrompts: Record<string, { label: string, details: string }> = {
+        // Detailed Prompt Logic (Enhanced for better results)
+        // ... (Keep existing prompt logic) ...
+        const themePrompts: Record<string, { label: string, details: string, details_boy?: string }> = {
             // Free
             'astronaut': {
                 label: 'Astronaut',
@@ -106,7 +108,8 @@ export async function POST(request: Request) {
             },
             'tennis': {
                 label: 'Tennis Player',
-                details: 'wearing a white polo shirt and tennis shorts/skirt with a headband, holding a tennis racket, standing on a clay tennis court'
+                details: 'wearing a white polo shirt and tennis skirt with a headband, holding a tennis racket, standing on a clay tennis court',
+                details_boy: 'wearing a white polo shirt and tennis shorts with a headband, holding a tennis racket, standing on a clay tennis court'
             },
             'golf': {
                 label: 'Golf Player',
@@ -114,11 +117,22 @@ export async function POST(request: Request) {
             },
             'figure_skater': {
                 label: 'Figure Skater',
-                details: 'wearing a sparkling, elegant figure skating dress with sequins, performing on an ice rink with ice skates on'
+                details: 'wearing a sparkling, elegant figure skating dress with sequins, performing on an ice rink with ice skates on',
+                details_boy: 'wearing a sparkling, elegant male figure skating outfit with a sequined shirt and fitted trousers, performing on an ice rink with ice skates on',
             },
         }
 
+        // Logic to select details based on gender
         const themeConfig = themePrompts[theme] || { label: theme, details: `wearing a ${theme} costume` }
+        let details = themeConfig.details
+
+        // Apply Boy Override if available and gender is boy
+        // @ts-ignore
+        if (gender === 'boy' && themeConfig.details_boy) {
+            // @ts-ignore
+            details = themeConfig.details_boy
+        }
+
         const themeName = themeConfig.label
 
         if (!image_base64 && !storage_path) {
@@ -192,8 +206,8 @@ export async function POST(request: Request) {
 
 CRITICAL INSTRUCTIONS:
 1. FACE PRESERVATION: Keep the child's EXACT face, facial features, eyes, nose, mouth, skin tone, hair color, and expression. The face MUST remain recognizable as the original child.
-2. COSTUME CHANGE: Change ONLY their clothing/outfit. They should be ${themeConfig.details}.
-3. BACKGROUND: Change background to match the description: ${themeConfig.details}.
+2. COSTUME CHANGE: Change ONLY their clothing/outfit. They should be ${details}.
+3. BACKGROUND: Change background to match the description: ${details}.
 4. STYLE: Photorealistic, high quality, 8k resolution, cinematic lighting.
 5. FORMAT: ${aspectRatio}.
 6. SHOT: ${shotInstruction}.
