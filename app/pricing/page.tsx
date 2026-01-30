@@ -80,16 +80,13 @@ export default function PricingPage() {
         <div className="container mx-auto max-w-5xl px-4 py-12 relative">
             {/* Header */}
             <div className="text-center mb-12">
-                <span className="inline-block bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-sm font-bold mb-4 animate-bounce">
-                    {locale === 'ko' ? '🎉 런칭 기념 이벤트 중!' : '🎉 Launch Celebration Event!'}
-                </span>
                 <h1 className="text-3xl md:text-4xl font-bold mb-4">
-                    {locale === 'ko' ? '크레딧 무료 선물' : 'Free Credit Gifts'}
+                    {locale === 'ko' ? '요금제 선택' : 'Simple Pricing'}
                 </h1>
                 <p className="text-gray-600 max-w-xl mx-auto">
                     {locale === 'ko'
-                        ? '지금 구매 버튼을 누르면 무료로 크레딧을 드려요! (계정당 1회)'
-                        : 'Click buy to get free credits! (Once per account)'}
+                        ? '아이의 꿈을 현실로 만들어보세요. 숨겨진 비용 없는 투명한 가격입니다.'
+                        : 'Turn your child\'s dreams into reality. Transparent pricing with no hidden fees.'}
                 </p>
             </div>
 
