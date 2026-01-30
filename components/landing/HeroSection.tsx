@@ -15,10 +15,10 @@ export default function HeroSection({ locale }: { locale: string }) {
                     {/* Left Column: Hero Visual (Before/After Comparison) */}
                     <div className="w-full lg:w-1/2 relative h-[400px] lg:h-[600px] rounded-3xl overflow-hidden shadow-2xl order-1 lg:order-1 mt-8 lg:mt-0 ring-4 ring-white/50">
                         <ComparisonSlider
-                            beforeImage="https://images.unsplash.com/photo-1519238263496-65260f3e2629?q=80&w=1000&auto=format&fit=crop"
-                            afterImage="https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=1000&auto=format&fit=crop"
-                            beforeLabel={locale === 'ko' ? "평범한 일상" : "Original"}
-                            afterLabel={locale === 'ko' ? "미래의 우주비행사" : "Future Astronaut"}
+                            beforeImage="https://images.unsplash.com/photo-1602052852877-c4542602353a?q=80&w=1000&auto=format&fit=crop"
+                            afterImage="https://images.unsplash.com/photo-1454789548779-d5521175313c?q=80&w=1000&auto=format&fit=crop"
+                            beforeLabel={locale === 'ko' ? "평범한 사진" : "Original Photo"}
+                            afterLabel={locale === 'ko' ? "우주비행사 변신" : "Future Astronaut"}
                         />
 
                         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium border border-white/20">
