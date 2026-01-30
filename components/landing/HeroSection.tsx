@@ -73,11 +73,11 @@ export default function HeroSection({ locale }: { locale: string }) {
 
                         {/* Product Hunt Badge */}
                         <div className="mt-8">
-                            <a href="https://www.producthunt.com/posts/dear-my-kids?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-dear-my-kids" target="_blank">
+                            <a href="https://www.producthunt.com/products/dear-my-kids?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-dear-my-kids" target="_blank" rel="noopener noreferrer">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                    src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=835667&theme=light"
-                                    alt="Dear My Kids - Create your child's future dream photos with AI | Product Hunt"
+                                    src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1070264&theme=light&t=1769755287693"
+                                    alt="Dear My Kids - Give your child the gift of visualizing their dreams with AI | Product Hunt"
                                     style={{ width: '250px', height: '54px' }}
                                     width="250"
                                     height="54"
