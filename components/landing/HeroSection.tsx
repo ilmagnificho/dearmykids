@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Sparkles } from 'lucide-react'
 import TrustBanner from './TrustBanner'
-import ComparisonSlider from '@/components/ui/ComparisonSlider'
+import { ComparisonSlider } from '@/components/ui/ComparisonSlider'
 
 export default function HeroSection({ locale }: { locale: string }) {
     return (
