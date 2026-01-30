@@ -59,7 +59,7 @@ export default function CreatePage() {
     const [selectedShot, setSelectedShot] = useState('portrait')
     const [uploading, setUploading] = useState(false)
     const [loadingMessage, setLoadingMessage] = useState('') // Dynamic loading steps
-    const [loadingMessage, setLoadingMessage] = useState('') // Dynamic loading steps
+
     const [hasCredits, setHasCredits] = useState(false) // Check if user has credits
     const [credits, setCredits] = useState(0)
     const [cachedPhoto, setCachedPhoto] = useState<string | null>(null) // Base64 cached photo
