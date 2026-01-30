@@ -1,14 +1,43 @@
+'use client'
+
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { usePathname } from 'next/navigation'
+import { createClient } from '@/utils/supabase/client'
+import { useEffect, useState } from 'react'
+import { User } from '@supabase/supabase-js'
+import { Loader2, Globe } from 'lucide-react'
 import { useLocale } from '@/contexts/LocaleContext'
 
-// ...
-
 export function Navbar() {
-    const { locale, setLocale } = useLocale() // Use context hook
+    const { locale, setLocale } = useLocale()
     const [user, setUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
-    // ... (rest of state)
+    const supabase = createClient()
+    const pathname = usePathname()
 
-    // ... (useEffect and other logic)
+    useEffect(() => {
+        const checkUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            setUser(user)
+            setLoading(false)
+        }
+        checkUser()
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user ?? null)
+        })
+
+        return () => subscription.unsubscribe()
+    }, [])
+
+    const handleSignOut = async () => {
+        await supabase.auth.signOut()
+        window.location.reload()
+    }
+
+    // Hide Navbar on login page if desired
+    if (pathname === '/login') return null
 
     return (
         <nav className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
