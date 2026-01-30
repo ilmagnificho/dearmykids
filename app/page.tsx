@@ -6,6 +6,8 @@ import { ArrowRight, Globe } from 'lucide-react'
 import { useLocale } from '@/contexts/LocaleContext'
 import { useEffect, useState } from 'react'
 import ReferralTracker from '@/components/ReferralTracker'
+import HeroSection from '@/components/landing/HeroSection'
+import HowItWorks from '@/components/landing/HowItWorks'
 
 // Career showcase
 const CAREERS = [
