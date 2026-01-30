@@ -89,11 +89,18 @@ export function Navbar() {
                             </Button>
                         </div>
                     ) : (
-                        <Link href="/login">
-                            <Button variant="default" className="bg-navy-900 hover:bg-navy-800 text-white">
-                                Login
-                            </Button>
-                        </Link>
+                        <div className="flex items-center gap-2">
+                            <Link href="/login">
+                                <Button variant="ghost" className="text-gray-600 hover:text-navy-900">
+                                    {locale === 'ko' ? '로그인' : 'Login'}
+                                </Button>
+                            </Link>
+                            <Link href="/login">
+                                <Button variant="default" className="bg-navy-900 hover:bg-navy-800 text-white rounded-full px-6">
+                                    {locale === 'ko' ? '회원가입' : 'Sign Up'}
+                                </Button>
+                            </Link>
+                        </div>
                     )}
                 </div>
             </div>
