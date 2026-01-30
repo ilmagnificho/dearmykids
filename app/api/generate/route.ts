@@ -297,63 +297,83 @@ Do not cartoonize unless specified. Make it look like a real professional photo.
         }
 
         // Save to Storage and DB
-        const base64Data = resultUrl.split(',')[1]
+        let publicUrl = ''
+        let imageId = 'temp-' + Date.now()
 
-        // Convert base64 to Uint8Array (Edge Safe replacement for Buffer)
-        const binaryString = atob(base64Data);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
+        try {
+            const base64Data = resultUrl.split(',')[1]
+
+            // Convert base64 to Uint8Array (Edge Safe replacement for Buffer)
+            const binaryString = atob(base64Data);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            // supabase upload accepts ArrayBuffer/Uint8Array/Blob in Edge
+
+            const fileName = `generated/${user.id}/${Date.now()}.jpg`
+
+            const { error: uploadError } = await supabase.storage
+                .from('uploads')
+                .upload(fileName, bytes, {
+                    contentType: 'image/jpeg'
+                })
+
+            if (uploadError) {
+                console.error('Storage Upload Error:', uploadError)
+                throw uploadError
+            }
+
+            const { data: publicUrlData } = supabase.storage
+                .from('uploads')
+                .getPublicUrl(fileName)
+
+            publicUrl = publicUrlData.publicUrl
+
+            const expiresAt = new Date()
+            if (needsCredits) {
+                expiresAt.setHours(expiresAt.getHours() + 48)
+            } else {
+                expiresAt.setHours(expiresAt.getHours() + 2)
+            }
+
+            const { data: imageRecord, error: dbError } = await supabase
+                .from('generated_images')
+                .insert({
+                    user_id: user.id,
+                    image_url: publicUrl,
+                    prompt: editPrompt,
+                    theme: theme,
+                    storage_path: fileName,
+                    expires_at: expiresAt.toISOString(),
+                    // Analytics
+                    is_free_tier: canUseFree,
+                    credits_used: needsCredits ? 1 : 0,
+                    format: format,
+                    shot_type: shot_type
+                })
+                .select()
+                .single()
+
+            if (dbError) {
+                console.error('DB Insert Error (Ignored to show result):', dbError)
+                // Don't throw here, just log. The user (and Launch) wants the image.
+            } else {
+                imageId = imageRecord.id
+            }
+
+        } catch (err) {
+            console.error('Save Process Failed:', err)
+            // Fallback: If storage/DB failed, verify we have the resultUrl (Data URL) from Gemini
+            // We do, so we will return that.
         }
-        // supabase upload accepts ArrayBuffer/Uint8Array/Blob in Edge
-
-        const fileName = `generated/${user.id}/${Date.now()}.jpg`
-
-        const { error: uploadError } = await supabase.storage
-            .from('uploads')
-            .upload(fileName, bytes, {
-                contentType: 'image/jpeg'
-            })
-
-        if (uploadError) throw uploadError
-
-        const { data: { publicUrl } } = supabase.storage
-            .from('uploads')
-            .getPublicUrl(fileName)
-
-        const expiresAt = new Date()
-        if (needsCredits) {
-            expiresAt.setHours(expiresAt.getHours() + 48)
-        } else {
-            expiresAt.setHours(expiresAt.getHours() + 2)
-        }
-
-        const { data: imageRecord, error: dbError } = await supabase
-            .from('generated_images')
-            .insert({
-                user_id: user.id,
-                image_url: publicUrl,
-                prompt: editPrompt,
-                theme: theme,
-                storage_path: fileName,
-                expires_at: expiresAt.toISOString(),
-                // Analytics
-                is_free_tier: canUseFree,
-                credits_used: needsCredits ? 1 : 0,
-                format: format,
-                shot_type: shot_type
-            })
-            .select()
-            .single()
-
-        if (dbError) throw dbError
 
         return NextResponse.json({
             success: true,
             message: 'Generation successful',
-            imageId: imageRecord.id,
-            imageUrl: publicUrl
+            imageId: imageId,
+            imageUrl: publicUrl || resultUrl // Prefer public URL, fallback to Data URL
         })
 
     } catch (error: any) {
