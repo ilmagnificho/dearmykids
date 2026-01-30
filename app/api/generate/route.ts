@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { FREE_TIER } from '@/lib/credits'
 
+export const runtime = 'edge' // Bypass 10s Serverless Timeout (Edge allows ~30s on Hobby)
+
 export async function POST(request: Request) {
     try {
         const supabase = await createClient()
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
         const isFreeShot = shot_type === 'portrait'
 
         // Detailed Prompt Logic (Enhanced for better results)
+        // ... (Keep existing prompt logic) ...
         const themePrompts: Record<string, { label: string, details: string }> = {
             // Free
             'astronaut': {
@@ -117,7 +120,7 @@ export async function POST(request: Request) {
         let sourceImageBase64 = image_base64
         let imageMimeType = 'image/jpeg'
 
-        // If no direct base64, fetch from storage
+        // If no direct base64, fetch from storage (Edge Compatible)
         if (!sourceImageBase64 && storage_path) {
             const { data: imageData, error: downloadError } = await supabase.storage
                 .from('uploads')
@@ -129,7 +132,15 @@ export async function POST(request: Request) {
             }
 
             const arrayBuffer = await imageData.arrayBuffer()
-            sourceImageBase64 = Buffer.from(arrayBuffer).toString('base64')
+            // Convert ArrayBuffer to Base64 (Edge safe)
+            // Note: For large files, chunking is better, but here we expect <4MB
+            let binary = '';
+            const bytes = new Uint8Array(arrayBuffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            sourceImageBase64 = btoa(binary);
             imageMimeType = imageData.type || 'image/jpeg'
         }
 
@@ -281,12 +292,21 @@ Do not cartoonize unless specified. Make it look like a real professional photo.
 
         // Save to Storage and DB
         const base64Data = resultUrl.split(',')[1]
-        const imageBuffer = Buffer.from(base64Data, 'base64')
+
+        // Convert base64 to Uint8Array (Edge Safe replacement for Buffer)
+        const binaryString = atob(base64Data);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        // supabase upload accepts ArrayBuffer/Uint8Array/Blob in Edge
+
         const fileName = `generated/${user.id}/${Date.now()}.jpg`
 
         const { error: uploadError } = await supabase.storage
             .from('uploads')
-            .upload(fileName, imageBuffer, {
+            .upload(fileName, bytes, {
                 contentType: 'image/jpeg'
             })
 
