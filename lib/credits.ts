@@ -34,7 +34,7 @@ export type PackageId = keyof typeof CREDIT_PACKAGES
 // Free tier settings
 export const FREE_TIER = {
     dailyLimit: 1,           // 1 free generation per day
-    freeThemes: ['astronaut', 'doctor', 'scientist'],  // Free themes only
+    freeThemes: ['astronaut', 'doctor', 'scientist', 'artist', 'figure_skater'],  // Free themes only
     imageRetention: 2,       // 2 hours
 }
 

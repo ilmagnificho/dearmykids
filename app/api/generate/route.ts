@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         const json = await request.json()
         console.log('[API] JSON parsed')
 
-        const { storage_path, theme, is_guest, image_base64, format = 'square', shot_type = 'portrait' } = json
+        const { storage_path, theme, is_guest, image_base64, format = 'square', shot_type = 'portrait', gender, age } = json
 
         if (!theme) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -105,6 +105,10 @@ export async function POST(request: Request) {
                 label: 'Golf Player',
                 details: 'wearing a polo shirt, cap, and golf glove, holding a golf club, standing on a beautiful green golf course with trees in the background'
             },
+            'figure_skater': {
+                label: 'Figure Skater',
+                details: 'wearing a sparkling, elegant figure skating dress with sequins, performing on an ice rink with ice skates on'
+            },
         }
 
         const themeConfig = themePrompts[theme] || { label: theme, details: `wearing a ${theme} costume` }
@@ -168,8 +172,16 @@ export async function POST(request: Request) {
         }
         const aspectRatio = aspectRatios[format] || aspectRatios['square']
 
+        // Age/Gender specific descriptor
+        let subjectDesc = 'child'
+        if (age && gender) {
+            const ageMap: Record<string, string> = { 'toddler': '4 year old', 'kid': '7 year old', 'preteen': '11 year old' }
+            const genderLabel = gender === 'boy' ? 'boy' : 'girl'
+            subjectDesc = `${ageMap[age] || 'child'} ${genderLabel}`
+        }
+
         // Image editing prompt - REFINED for better likeness and quality
-        const editPrompt = `Edit this photo of a child to transform them into a ${themeName}.
+        const editPrompt = `Edit this photo of a ${subjectDesc} to transform them into a ${themeName}.
 
 CRITICAL INSTRUCTIONS:
 1. FACE PRESERVATION: Keep the child's EXACT face, facial features, eyes, nose, mouth, skin tone, hair color, and expression. The face MUST remain recognizable as the original child.
