@@ -39,6 +39,38 @@ export async function POST(request: Request) {
         const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'https://dearmykids.vercel.app'
 
         // Create Lemon Squeezy checkout
+        const payload = {
+            data: {
+                type: 'checkouts',
+                attributes: {
+                    checkout_data: {
+                        email: user.email,
+                        custom: {
+                            user_id: user.id,
+                            package_id: packageId,
+                            credits: creditPackage.credits
+                        }
+                    },
+                    product_options: {
+                        redirect_url: `${origin}/dashboard?payment=success&package=${packageId}`,
+                    },
+                    checkout_options: {
+                        button_color: '#f59e0b'
+                    }
+                },
+                relationships: {
+                    store: {
+                        data: { type: 'stores', id: storeId.toString() }
+                    },
+                    variant: {
+                        data: { type: 'variants', id: variantId.toString() }
+                    }
+                }
+            }
+        }
+
+        console.log('Sending checkout payload:', JSON.stringify(payload, null, 2))
+
         const response = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
             method: 'POST',
             headers: {
@@ -46,48 +78,24 @@ export async function POST(request: Request) {
                 'Content-Type': 'application/vnd.api+json',
                 'Authorization': `Bearer ${apiKey}`
             },
-            body: JSON.stringify({
-                data: {
-                    type: 'checkouts',
-                    attributes: {
-                        checkout_data: {
-                            email: user.email,
-                            custom: {
-                                user_id: user.id,
-                                package_id: packageId,
-                                credits: creditPackage.credits
-                            }
-                        },
-                        product_options: {
-                            redirect_url: `${origin}/dashboard?payment=success&package=${packageId}`,
-                        },
-                        checkout_options: {
-                            button_color: '#f59e0b'
-                        }
-                    },
-                    relationships: {
-                        store: {
-                            data: { type: 'stores', id: storeId }
-                        },
-                        variant: {
-                            data: { type: 'variants', id: variantId }
-                        }
-                    }
-                }
-            })
+            body: JSON.stringify(payload)
         })
 
         if (!response.ok) {
-            const error = await response.text()
-            console.error('Lemon Squeezy error:', error)
-            throw new Error('Failed to create checkout')
+            const errorText = await response.text()
+            console.error('Lemon Squeezy API Error:', {
+                status: response.status,
+                statusText: response.statusText,
+                body: errorText
+            })
+            throw new Error(`Lemon Squeezy API/Store Error: ${response.status} ${errorText}`)
         }
 
         const data = await response.json()
         return NextResponse.json({ checkoutUrl: data.data.attributes.url })
 
     } catch (error: any) {
-        console.error('Checkout error:', error)
+        console.error('Checkout error details:', error)
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }
