@@ -52,7 +52,7 @@ const SHOT_TYPES = [
 ]
 
 export default function CreatePage() {
-    const { t } = useLocale()
+    const { t, locale } = useLocale()
     const [step, setStep] = useState(1)
     const [selectedTheme, setSelectedTheme] = useState<string | null>(null)
     const [selectedFormat, setSelectedFormat] = useState('square')
@@ -423,7 +423,7 @@ export default function CreatePage() {
                             {/* Loading State Donation Nudge */}
                             <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 max-w-sm mx-auto animate-fade-in">
                                 <p className="text-sm text-amber-800 mb-2 font-medium">
-                                    {t.create?.waitingTip || (locale === 'ko' ? '기다리는 동안...' : 'While you wait...')}
+                                    {locale === 'ko' ? '기다리는 동안...' : 'While you wait...'}
                                 </p>
                                 <a
                                     href="https://buymeacoffee.com/dearmykids"

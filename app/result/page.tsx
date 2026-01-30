@@ -11,7 +11,7 @@ import { ComparisonSlider } from '@/components/ui/ComparisonSlider'
 
 function ResultContent() {
     const searchParams = useSearchParams()
-    const { t } = useLocale()
+    const { t, locale } = useLocale()
     const [imageUrl, setImageUrl] = useState<string | null>(null)
     const [theme, setTheme] = useState<string>('')
     const [imageId, setImageId] = useState<string>('')
