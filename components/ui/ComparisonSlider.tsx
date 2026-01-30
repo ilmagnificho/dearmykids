@@ -104,12 +104,16 @@ export function ComparisonSlider({
             </div>
 
             {/* Labels */}
-            <div className="absolute top-4 left-4 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
-                {beforeLabel}
-            </div>
-            <div className="absolute top-4 right-4 bg-amber-500/80 text-white text-xs px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
-                {afterLabel}
-            </div>
+            {beforeLabel && (
+                <div className="absolute top-4 left-4 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
+                    {beforeLabel}
+                </div>
+            )}
+            {afterLabel && (
+                <div className="absolute top-4 right-4 bg-amber-500/80 text-white text-xs px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
+                    {afterLabel}
+                </div>
+            )}
         </div>
     )
 }
