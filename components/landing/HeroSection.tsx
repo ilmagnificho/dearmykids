@@ -70,10 +70,24 @@ export default function HeroSection({ locale }: { locale: string }) {
                         <p className="text-xs text-gray-400 mt-4 ml-2">
                             {locale === 'ko' ? '회원가입 불필요. 즉시 AI 분석.' : 'No sign-up required. Instant analysis.'}
                         </p>
+
+                        {/* Product Hunt Badge */}
+                        <div className="mt-8">
+                            <a href="https://www.producthunt.com/posts/dear-my-kids?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-dear-my-kids" target="_blank">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=835667&theme=light"
+                                    alt="Dear My Kids - Create your child's future dream photos with AI | Product Hunt"
+                                    style={{ width: '250px', height: '54px' }}
+                                    width="250"
+                                    height="54"
+                                />
+                            </a>
+                        </div>
                     </div>
 
                 </div>
             </div>
-        </section>
+        </section >
     )
 }
