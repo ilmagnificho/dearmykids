@@ -16,6 +16,8 @@ export default function PricingPage() {
     const router = useRouter()
     const supabase = createClient()
 
+    const [showCelebration, setShowCelebration] = useState<{ credits: number, message: string } | null>(null)
+
     const handlePurchase = async (packageId: string) => {
         setLoading(packageId)
 
@@ -27,7 +29,8 @@ export default function PricingPage() {
                 return
             }
 
-            const response = await fetch('/api/payments/checkout', {
+            // Call Gift API instead of Payment
+            const response = await fetch('/api/events/gift', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ packageId })
@@ -35,18 +38,25 @@ export default function PricingPage() {
 
             const data = await response.json()
 
-            if (data.checkoutUrl) {
-                // Debug: Show the URL we are redirecting to
-                alert(`Redirecting to: ${data.checkoutUrl}`)
-                window.location.href = data.checkoutUrl
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed')
+            }
+
+            if (data.success) {
+                // Show celebration!
+                setShowCelebration({
+                    credits: data.newCredits,
+                    message: locale === 'ko' ? '크레딧이 무료로 지급되었습니다!' : 'Credits granted for free!'
+                })
             } else {
-                throw new Error(data.error || 'Failed: No checkout URL returned')
+                // Already claimed or other status
+                alert(locale === 'ko' ? data.message : data.message)
             }
 
         } catch (error: any) {
-            console.error('Purchase error:', error)
+            console.error('Gift error:', error)
             const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-            alert(locale === 'ko' ? `결제 오류: ${errorMessage}` : `Payment Error: ${errorMessage}`)
+            alert(locale === 'ko' ? `오류가 발생했습니다: ${errorMessage}` : `Error: ${errorMessage}`)
         } finally {
             setLoading(null)
         }
@@ -55,16 +65,19 @@ export default function PricingPage() {
     const packages = Object.values(CREDIT_PACKAGES)
 
     return (
-        <div className="container mx-auto max-w-5xl px-4 py-12">
+        <div className="container mx-auto max-w-5xl px-4 py-12 relative">
             {/* Header */}
             <div className="text-center mb-12">
+                <span className="inline-block bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-sm font-bold mb-4 animate-bounce">
+                    {locale === 'ko' ? '🎉 런칭 기념 이벤트 중!' : '🎉 Launch Celebration Event!'}
+                </span>
                 <h1 className="text-3xl md:text-4xl font-bold mb-4">
-                    {locale === 'ko' ? '크레딧 구매' : 'Buy Credits'}
+                    {locale === 'ko' ? '크레딧 무료 선물' : 'Free Credit Gifts'}
                 </h1>
                 <p className="text-gray-600 max-w-xl mx-auto">
                     {locale === 'ko'
-                        ? '크레딧 1개 = AI 포트레이트 1장. 필요한 만큼만 구매하세요!'
-                        : '1 credit = 1 AI portrait. Buy only what you need!'}
+                        ? '지금 구매 버튼을 누르면 무료로 크레딧을 드려요! (계정당 1회)'
+                        : 'Click buy to get free credits! (Once per account)'}
                 </p>
             </div>
 
@@ -125,12 +138,17 @@ export default function PricingPage() {
                                     </span>
                                 </div>
 
-                                {/* Price */}
-                                <div className="text-2xl font-bold">
-                                    {formatPrice(price, locale)}
+                                {/* Price (Strikethrough for Event) */}
+                                <div className="text-2xl font-bold flex items-center justify-center gap-2">
+                                    <span className="line-through text-gray-400 text-lg">
+                                        {formatPrice(price, locale)}
+                                    </span>
+                                    <span className="text-red-500">
+                                        {locale === 'ko' ? '0원' : 'Free'}
+                                    </span>
                                 </div>
-                                <div className="text-sm text-gray-400">
-                                    {locale === 'ko' ? `장당 ₩${perImage.toLocaleString()}` : `$${(perImage / 100).toFixed(2)} per image`}
+                                <div className="text-sm text-amber-600 font-bold">
+                                    {locale === 'ko' ? '🎁 런칭 기념 무료!' : '🎁 Free Launch Gift!'}
                                 </div>
                             </div>
 
@@ -166,7 +184,7 @@ export default function PricingPage() {
                                 {loading === pkg.id ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
-                                    locale === 'ko' ? '구매하기' : 'Buy Now'
+                                    locale === 'ko' ? '무료로 받기' : 'Get for Free'
                                 )}
                             </Button>
                         </Card>
@@ -174,22 +192,52 @@ export default function PricingPage() {
                 })}
             </div>
 
+            {/* Celebration Modal */}
+            {showCelebration && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+                        <div className="text-6xl mb-4 animate-bounce">🎉</div>
+                        <h2 className="text-2xl font-bold mb-2 text-amber-600">
+                            {locale === 'ko' ? '축하합니다!' : 'Congratulations!'}
+                        </h2>
+                        <p className="text-gray-600 mb-6">
+                            {showCelebration.message}
+                        </p>
+                        <div className="p-4 bg-amber-50 rounded-xl mb-6 border border-amber-100">
+                            <p className="text-sm text-amber-800 mb-1">
+                                {locale === 'ko' ? '현재 총 보유 크레딧' : 'Total Credits'}
+                            </p>
+                            <p className="text-3xl font-bold text-amber-600">
+                                {showCelebration.credits}
+                            </p>
+                        </div>
+                        <Button
+                            className="w-full bg-amber-500 hover:bg-amber-600 text-lg py-6"
+                            onClick={() => {
+                                setShowCelebration(null)
+                                router.refresh()
+                                router.push('/dashboard')
+                            }}
+                        >
+                            {locale === 'ko' ? '이미지 만들러 가기 ✨' : 'Start Creating ✨'}
+                        </Button>
+                    </div>
+                </div>
+            )}
+
             {/* Trust badges */}
             <div className="mt-12 text-center">
                 <p className="text-sm text-gray-500 mb-4">
                     {locale === 'ko'
-                        ? '안전한 결제 | Lemon Squeezy 결제 보안'
-                        : 'Secure payments powered by Lemon Squeezy'}
+                        ? '100% 안전한 무료 이벤트입니다.'
+                        : '100% Secure Free Event'}
                 </p>
                 <div className="flex justify-center gap-4 text-gray-400">
                     <span className="text-xs flex items-center gap-1">
-                        💳 {locale === 'ko' ? '카드결제' : 'Card Payment'}
-                    </span>
-                    <span className="text-xs flex items-center gap-1">
-                        🍎 {locale === 'ko' ? 'Apple Pay' : 'Apple Pay'}
-                    </span>
-                    <span className="text-xs flex items-center gap-1">
                         🔒 {locale === 'ko' ? 'SSL 암호화' : 'SSL Secured'}
+                    </span>
+                    <span className="text-xs flex items-center gap-1">
+                        🛡️ {locale === 'ko' ? '개인정보 보호' : 'Privacy Protected'}
                     </span>
                 </div>
             </div>
@@ -202,32 +250,22 @@ export default function PricingPage() {
                 <div className="space-y-4">
                     <div className="p-4 bg-gray-50 rounded-lg">
                         <p className="font-medium mb-1">
+                            {locale === 'ko' ? '정말 무료인가요?' : 'Is it really free?'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                            {locale === 'ko'
+                                ? '네! 서비스 런칭 기념으로 제공되는 특별 혜택입니다. 카드 정보 입력 없이 즉시 지급됩니다.'
+                                : 'Yes! This is a special launch celebration gift. No credit card required.'}
+                        </p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-lg">
+                        <p className="font-medium mb-1">
                             {locale === 'ko' ? '크레딧 유효기간이 있나요?' : 'Do credits expire?'}
                         </p>
                         <p className="text-sm text-gray-600">
                             {locale === 'ko'
-                                ? '아니요, 구매하신 크레딧은 유효기간 없이 언제든 사용하실 수 있습니다.'
-                                : 'No, purchased credits do not expire. You can use them whenever you like.'}
-                        </p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                        <p className="font-medium mb-1">
-                            {locale === 'ko' ? '환불이 가능한가요?' : 'Can I get a refund?'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                            {locale === 'ko'
-                                ? '미사용 크레딧에 한해 구매 후 7일 이내 환불 가능합니다. 이미 사용된 크레딧은 환불되지 않습니다.'
-                                : 'Refunds are available for unused credits within 7 days of purchase. Used credits are non-refundable.'}
-                        </p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                        <p className="font-medium mb-1">
-                            {locale === 'ko' ? '생성된 이미지는 얼마나 보관되나요?' : 'How long are generated images stored?'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                            {locale === 'ko'
-                                ? '생성된 포트레이트는 48시간 동안만 서버에 보관됩니다. 기간 내에 꼭 다운로드해주세요!'
-                                : 'Generated portraits are stored for 48 hours only. Please make sure to download them before they expire.'}
+                                ? '아니요, 제공받은 크레딧은 유효기간 없이 언제든 사용하실 수 있습니다.'
+                                : 'No, credits do not expire. You can use them whenever you like.'}
                         </p>
                     </div>
                 </div>
@@ -235,3 +273,4 @@ export default function PricingPage() {
         </div>
     )
 }
+```
