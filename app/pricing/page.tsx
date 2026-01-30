@@ -43,7 +43,8 @@ export default function PricingPage() {
 
         } catch (error: any) {
             console.error('Purchase error:', error)
-            alert(locale === 'ko' ? '결제 오류가 발생했습니다.' : 'Payment error occurred.')
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+            alert(locale === 'ko' ? `결제 오류: ${errorMessage}` : `Payment Error: ${errorMessage}`)
         } finally {
             setLoading(null)
         }
