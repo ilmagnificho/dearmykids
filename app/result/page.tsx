@@ -75,57 +75,38 @@ function ResultContent() {
     }
 
     const handleShare = async () => {
-        if (!imageUrl) return
-
         const themeLabel = t.themes[theme as keyof typeof t.themes] || theme
         const shareText = `${themeLabel} - DearMyKids`
         const shareMessage = t.result?.shareMessage || 'Check out this future portrait created with DearMyKids!'
 
+        // Determine Share URL
+        // 1. If shared to gallery (public), use specific gallery link
+        // 2. Otherwise (Guest/Private), use Service Home Link
+        const origin = window.location.origin
+        // If we strictly track 'isShared', we can use it. For now, guest results default to Home.
+        const shareUrl = (isShared || !isGuest) && imageId ? `${origin}/gallery/${imageId}` : origin
+
         setSharing(true)
         try {
-            // Convert to File for native sharing
-            const response = await fetch(imageUrl)
-            const blob = await response.blob()
-            const file = new File([blob], `dearmykids-${theme}.png`, { type: 'image/png' })
-
-            // 1. Try Native Share with File (Mobile Best)
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            // 1. Try Native Share with URL (Priority per user request)
+            if (navigator.share) {
                 await navigator.share({
                     title: shareText,
                     text: shareMessage,
-                    files: [file],
+                    url: shareUrl,
                 })
                 return
             }
 
-            // 2. Try Native Share with URL (if file not supported)
-            // Note: For guest results, the page URL is useless for others. 
-            // We share the Image URL directly if it's a public URL (Supabase), otherwise we can't share a link.
-            if (imageUrl.startsWith('http') && navigator.share) {
-                await navigator.share({
-                    title: shareText,
-                    text: shareMessage,
-                    url: imageUrl, // Share the direct image link
-                })
-                return
-            }
-
-            // 3. Fallback: Download (Desktop/Unsupported)
-            // If we can't share, we just download it or copy to clipboard
-            if (imageUrl.startsWith('http')) {
-                await navigator.clipboard.writeText(imageUrl)
-                alert(t.result?.linkCopied || 'Image link copied!')
-            } else {
-                // Data URL - just download
-                handleDownload()
-            }
+            // 2. Fallback: Copy Link to Clipboard
+            await navigator.clipboard.writeText(shareUrl)
+            alert(locale === 'ko' ? '서비스 링크가 복사되었습니다!' : 'Link copied to clipboard!')
 
         } catch (error) {
             console.error('Share failed:', error)
-            // Fallback
-            if (imageUrl.startsWith('http')) {
-                window.open(imageUrl, '_blank')
-            }
+            // Final fallback
+            await navigator.clipboard.writeText(shareUrl)
+            alert(locale === 'ko' ? '서비스 링크가 복사되었습니다!' : 'Link copied to clipboard!')
         } finally {
             setSharing(false)
         }
