@@ -197,6 +197,7 @@ CRITICAL INSTRUCTIONS:
 4. STYLE: Photorealistic, high quality, 8k resolution, cinematic lighting.
 5. FORMAT: ${aspectRatio}.
 6. SHOT: ${shotInstruction}.
+7. POSE: Dynamic and natural pose fitting the theme. You MAY change the body pose to match the action (e.g., skating, kicking, holding something), but the FACE MUST INITIAL EXACTLY THE SAME.
 
 Do not cartoonize unless specified. Make it look like a real professional photo.`
 
