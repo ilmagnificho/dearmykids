@@ -31,8 +31,8 @@ export function ImageUpload({ onImageSelected }: ImageUploadProps) {
                 return
             }
 
-            // 2. Image dimensions validation (min 500x500)
-            const MIN_DIMENSION = 500
+            // 2. Image dimensions validation (min 50x50)
+            const MIN_DIMENSION = 50
             const img = new Image()
             const objectUrl = URL.createObjectURL(file) // Create object URL for dimension check
             img.src = objectUrl
