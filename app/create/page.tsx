@@ -71,11 +71,17 @@ export default function CreatePage() {
         const checkCredits = async () => {
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-                const { data: profile } = await supabase
+                const { data: profile, error } = await supabase
                     .from('user_profiles')
                     .select('credits')
                     .eq('user_id', user.id)
                     .single()
+
+                if (error) {
+                    console.error('Error fetching credits:', error)
+                }
+
+                console.log('User Profile Credits:', profile)
 
                 if (profile) {
                     setCredits(profile.credits)
