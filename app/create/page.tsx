@@ -175,8 +175,6 @@ export default function CreatePage() {
                     throw new Error(errorData.error || `Generation failed: ${response.status}`)
                 }
 
-                const result = await response.json()
-                // ... existing success logic ...
 
 
                 const result = await response.json()
