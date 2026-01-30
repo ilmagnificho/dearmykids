@@ -4,18 +4,26 @@ import { createClient as createServerClient } from '@/utils/supabase/server' // 
 import { CREDIT_PACKAGES, PackageId } from '@/lib/credits'
 
 export async function POST(request: Request) {
+    console.log('Gift API: Processing POST request')
     try {
         const supabase = await createServerClient()
         const { data: { user } } = await supabase.auth.getUser()
 
         if (!user) {
+            console.log('Gift API: No user found')
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
+        // Validate Env Vars
+        if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            console.error('Gift API Error: Missing SUPABASE_SERVICE_ROLE_KEY')
+            return NextResponse.json({ error: 'Server Configuration Error: Missing Service Role Key' }, { status: 500 })
         }
 
         // Initialize Admin Client (Service Role) to bypass RLS
         const supabaseAdmin = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY,
             {
                 auth: {
                     autoRefreshToken: false,
@@ -24,7 +32,9 @@ export async function POST(request: Request) {
             }
         )
 
-        const { packageId } = await request.json() as { packageId: PackageId }
+        const body = await request.json()
+        const { packageId } = body as { packageId: PackageId }
+        console.log(`Gift API: User ${user.id} requesting package ${packageId}`)
 
         // Validate package
         const creditPackage = CREDIT_PACKAGES[packageId]
