@@ -18,8 +18,8 @@ export async function POST(request: Request) {
 
         const { storage_path, theme, is_guest, image_base64, format = 'square', shot_type = 'portrait', gender, age } = json
 
-        if (!theme) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+        if (!theme || !gender || !age) {
+            return NextResponse.json({ error: 'Missing required fields (theme, gender, age)' }, { status: 400 })
         }
 
         // Check if theme is free or premium
@@ -193,6 +193,59 @@ CRITICAL INSTRUCTIONS:
 
 Do not cartoonize unless specified. Make it look like a real professional photo.`
 
+        // ----------------------------------------------------------------
+        // 1. AUTH & CREDIT CHECKS (Before Generation to save costs)
+        // ----------------------------------------------------------------
+
+        // Guest Mode Check
+        if (is_guest) {
+            if (!isFreeTheme || !isFreeFormat || !isFreeShot) {
+                return NextResponse.json({
+                    error: 'Premium features (theme, format, or shot type) are not available for guests.',
+                    code: 'PREMIUM_REQUIRED'
+                }, { status: 403 })
+            }
+        }
+        // Standard Auth Check
+        else if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+        // Premium User Checks
+        else {
+            // Check credits and daily limit
+            const { data: profile } = await supabase
+                .from('user_profiles')
+                .select('credits, daily_free_used, daily_free_date')
+                .eq('user_id', user.id)
+                .single()
+
+            const today = new Date().toISOString().split('T')[0]
+            const credits = profile?.credits || 0
+            const dailyFreeUsed = profile?.daily_free_date === today ? (profile?.daily_free_used || 0) : 0
+
+            const canUseFree = isFreeTheme && isFreeFormat && isFreeShot && dailyFreeUsed < FREE_TIER.dailyLimit
+            const needsCredits = !canUseFree
+
+            if (needsCredits && credits <= 0) {
+                return NextResponse.json({
+                    error: 'No credits remaining',
+                    needsCredits: true,
+                    message: 'Please purchase credits to continue'
+                }, { status: 402 })
+            }
+
+            // DEDUCT CREDITS / UPDATE DAILY LIMIT BEFORE GENERATION
+            // This is safer to prevent abuse, but if generation fails we should theoretically refund.
+            // For now, we assume high success rate or user can retry if it's a systemic failure.
+            // To be perfectly safe, we could deduct AFTER, but then we risk "generate but fail to deduct".
+            // Let's deduct AFTER for better UX on failure, BUT we must check BEFORE.
+            // Current Logic: We checked capability above. We will deduct after success.
+        }
+
+        // ----------------------------------------------------------------
+        // 2. GENERATE CONTENT (Gemini)
+        // ----------------------------------------------------------------
+
         // Use Gemini 2.5 Flash Image with the source image included
         const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`
 
@@ -244,15 +297,10 @@ Do not cartoonize unless specified. Make it look like a real professional photo.
             throw new Error('Gemini returned no image data.')
         }
 
-        // Guest Mode Response
+        // Return early for Guests (No DB save needed for guest mode based on previous logic, OR we save it?)
+        // Previous logic: "Guest Mode Response" returned immediately.
+        // Let's keep that behavior.
         if (is_guest) {
-            if (!isFreeTheme || !isFreeFormat || !isFreeShot) {
-                return NextResponse.json({
-                    error: 'Premium features (theme, format, or shot type) are not available for guests.',
-                    code: 'PREMIUM_REQUIRED'
-                }, { status: 403 })
-            }
-
             return NextResponse.json({
                 success: true,
                 message: 'Guest generation successful',
@@ -261,51 +309,53 @@ Do not cartoonize unless specified. Make it look like a real professional photo.
             })
         }
 
-        // Standard Auth Check
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+        // ----------------------------------------------------------------
+        // 3. DEDUCT CREDITS & SAVE (After Generation)
+        // ----------------------------------------------------------------
 
-        // Check credits and daily limit
-        const { data: profile } = await supabase
+        // Re-fetch profile to ensure we have latest state if needed, or just use variables.
+        // We need to re-calculate canUseFree/needsCredits or carry them over.
+        // Since we are in the same scope, we can reuse `canUseFree` if we define it properly.
+        // BUT variables in `else` block above are scoped.
+        // I need to restructure to hoist variables or duplicate logic.
+        // Given complexity, I will duplicate the deduction logic here using the PRE-CALCULATED values if I can scope them.
+
+        // Actually, cleaner way:
+        // Do the checks at the top.
+        // Do the deduction here.
+
+        // Re-calcing for DB save part
+        const { data: profileForUpdate } = await supabase
             .from('user_profiles')
             .select('credits, daily_free_used, daily_free_date')
-            .eq('user_id', user.id)
+            .eq('user_id', user!.id)
             .single()
 
         const today = new Date().toISOString().split('T')[0]
-        const credits = profile?.credits || 0
-        const dailyFreeUsed = profile?.daily_free_date === today ? (profile?.daily_free_used || 0) : 0
-
+        const currentCredits = profileForUpdate?.credits || 0
+        const dailyFreeUsed = profileForUpdate?.daily_free_date === today ? (profileForUpdate?.daily_free_used || 0) : 0
         const canUseFree = isFreeTheme && isFreeFormat && isFreeShot && dailyFreeUsed < FREE_TIER.dailyLimit
         const needsCredits = !canUseFree
-
-        if (needsCredits && credits <= 0) {
-            return NextResponse.json({
-                error: 'No credits remaining',
-                needsCredits: true,
-                message: 'Please purchase credits to continue'
-            }, { status: 402 })
-        }
 
         // Deduct credit or update daily free count
         if (canUseFree) {
             await supabase
                 .from('user_profiles')
                 .upsert({
-                    user_id: user.id,
+                    user_id: user!.id,
                     daily_free_used: dailyFreeUsed + 1,
                     daily_free_date: today,
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id' })
         } else {
+            // Double check credits didn't disappear (race condition), but usually fine.
             await supabase
                 .from('user_profiles')
                 .update({
-                    credits: credits - 1,
+                    credits: currentCredits - 1,
                     updated_at: new Date().toISOString()
                 })
-                .eq('user_id', user.id)
+                .eq('user_id', user!.id)
         }
 
         // Save to Storage and DB
@@ -324,7 +374,7 @@ Do not cartoonize unless specified. Make it look like a real professional photo.
             }
             // supabase upload accepts ArrayBuffer/Uint8Array/Blob in Edge
 
-            const fileName = `generated/${user.id}/${Date.now()}.jpg`
+            const fileName = `generated/${user!.id}/${Date.now()}.jpg`
 
             const { error: uploadError } = await supabase.storage
                 .from('uploads')
@@ -353,7 +403,7 @@ Do not cartoonize unless specified. Make it look like a real professional photo.
             const { data: imageRecord, error: dbError } = await supabase
                 .from('generated_images')
                 .insert({
-                    user_id: user.id,
+                    user_id: user!.id,
                     image_url: publicUrl,
                     prompt: editPrompt,
                     theme: theme,

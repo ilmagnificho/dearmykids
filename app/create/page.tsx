@@ -247,7 +247,7 @@ export default function CreatePage() {
     }
 
     return (
-        <div className="container mx-auto max-w-4xl px-4 py-8">
+        <div className="container mx-auto max-w-4xl px-4 py-8 pb-32">
             {/* Progress indicator */}
             <div className="flex items-center justify-center gap-2 mb-8">
                 {[1, 2, 3].map((s) => (
@@ -475,6 +475,7 @@ export default function CreatePage() {
                         </Button>
                         <Button
                             size="lg"
+                            disabled={!selectedGender || !selectedAge}
                             onClick={() => setStep(3)}
                             className="flex-[2] md:flex-none px-12 bg-amber-600 hover:bg-amber-700 text-lg shadow-lg"
                         >
