@@ -48,7 +48,7 @@ export async function POST(request: Request) {
                         custom: {
                             user_id: user.id,
                             package_id: packageId,
-                            credits: creditPackage.credits
+                            credits: creditPackage.credits.toString()
                         }
                     },
                     product_options: {
