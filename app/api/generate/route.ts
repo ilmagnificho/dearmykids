@@ -311,7 +311,12 @@ Do not cartoonize unless specified. Make it look like a real professional photo.
                 prompt: editPrompt,
                 theme: theme,
                 storage_path: fileName,
-                expires_at: expiresAt.toISOString()
+                expires_at: expiresAt.toISOString(),
+                // Analytics
+                is_free_tier: canUseFree,
+                credits_used: needsCredits ? 1 : 0,
+                format: format,
+                shot_type: shot_type
             })
             .select()
             .single()

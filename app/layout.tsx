@@ -82,17 +82,20 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="theme-color" content="#f59e0b" />
-        {/* Google Analytics */}
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-          strategy="afterInteractive"
-        />
+        {/* Google Analytics - Exclude internal traffic if flag is set */}
         <Script id="google-analytics" strategy="afterInteractive">
           {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_ID}');
+            // Check if internal user flag is set
+            const isInternal = typeof window !== 'undefined' && localStorage.getItem('exclude_ga') === 'true';
+            
+            if (!isInternal) {
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${GA_ID}');
+            } else {
+              console.log('GA4 blocked for internal user');
+            }
           `}
         </Script>
       </head>
