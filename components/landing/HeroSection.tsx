@@ -15,7 +15,7 @@ export default function HeroSection({ locale }: { locale: string }) {
             </div>
 
             <div className="container mx-auto px-4 text-center">
-                <TrustBanner />
+                <TrustBanner locale={locale} />
 
                 <h1 className="mt-8 text-5xl md:text-7xl font-bold tracking-tight text-slate-900 mb-6 leading-[1.1] max-w-4xl mx-auto">
                     {locale === 'ko' ? (
