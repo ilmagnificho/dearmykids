@@ -96,11 +96,12 @@ export function Navbar() {
 
                     {/* Buy Me a Coffee Button (No Auth) */}
                     <a
-                        href="https://buymeacoffee.com/"
+                        href="https://buymeacoffee.com/dearmykids"
                         target="_blank"
                         rel="noreferrer"
                         className="flex items-center gap-2 bg-[#FFDD00] text-black px-4 py-2 rounded-full text-sm font-bold shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5"
                     >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
                             alt="Buy me a coffee"
