@@ -36,9 +36,11 @@ export default function PricingPage() {
             const data = await response.json()
 
             if (data.checkoutUrl) {
+                // Debug: Show the URL we are redirecting to
+                alert(`Redirecting to: ${data.checkoutUrl}`)
                 window.location.href = data.checkoutUrl
             } else {
-                throw new Error(data.error || 'Failed')
+                throw new Error(data.error || 'Failed: No checkout URL returned')
             }
 
         } catch (error: any) {
