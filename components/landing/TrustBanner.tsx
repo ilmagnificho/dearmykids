@@ -2,7 +2,7 @@
 
 import { Star } from 'lucide-react'
 
-export default function TrustBanner() {
+export default function TrustBanner({ locale }: { locale: string }) {
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-2 animate-fade-in-up">
             <div className="flex items-center gap-1">
@@ -11,7 +11,10 @@ export default function TrustBanner() {
                 ))}
             </div>
             <p className="text-sm font-medium text-gray-600">
-                Loved by <span className="font-bold text-gray-900">50,000+ happy parents</span> worldwide
+                {locale === 'ko'
+                    ? <><span className="font-bold text-gray-900">많은 부모님들</span>이 선택한 서비스</>
+                    : <>Loved by <span className="font-bold text-gray-900">Parents</span> worldwide</>
+                }
             </p>
         </div>
     )
