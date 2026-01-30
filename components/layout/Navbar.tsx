@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Globe } from 'lucide-react'
 
 export function Navbar() {
     const [user, setUser] = useState<User | null>(null)
@@ -66,6 +66,19 @@ export function Navbar() {
                 </div>
 
                 <div className="flex items-center gap-4">
+                    {/* Language Switcher */}
+                    <button
+                        onClick={() => {
+                            const newLocale = localStorage.getItem('locale') === 'ko' ? 'en' : 'ko'
+                            localStorage.setItem('locale', newLocale)
+                            window.dispatchEvent(new Event('localeChange'))
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-navy-900 border rounded-full hover:bg-gray-50 transition-colors"
+                    >
+                        <Globe className="w-4 h-4" />
+                        <span>EN/KR</span>
+                    </button>
+
                     {loading ? (
                         <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
                     ) : user ? (
